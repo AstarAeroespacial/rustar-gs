@@ -1,0 +1,123 @@
+\documentclass[a4paper,11pt]{article}
+
+% --- Language and font ---
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx} % Times New Roman-like
+
+% --- Layout and spacing ---
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{setspace}
+\onehalfspacing % Line spacing 1.5
+
+\usepackage{parskip}
+\setlength{\parskip}{0pt} % No space after paragraph
+\setlength{\parindent}{0pt} % Optional: no indent
+
+% --- Graphics ---
+\usepackage{graphicx}
+
+% --- Title formatting ---
+\usepackage{titlesec}
+\titleformat{\section}
+  {\normalfont\fontsize{16}{18}\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\fontsize{14}{16}\bfseries}{\thesubsection}{1em}{}
+\renewcommand{\normalsize}{\fontsize{11}{13}\selectfont}
+
+\titlespacing*{\section}{0pt}{0pt}{0pt}
+\titlespacing*{\subsection}{0pt}{0pt}{0pt}
+
+% --- Headers and footers ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[C]{\textit{RUSTAR - Software para estación terrena}}
+\fancyfoot[L]{Davies, Lazcano, Medone Sabatini, Bohórquez}
+\fancyfoot[R]{\thepage}
+
+% --- Document begins ---
+\begin{document}
+
+% --- Cover Page ---
+\begin{titlepage}
+\begin{center}
+
+\includegraphics[width=7cm]{logo} \\[2cm]
+
+\textsc{\Large Trabajo Profesional} \\[0.5cm]
+{\huge \bfseries RUSTAR \\[0.3cm]
+Software para estación terrena} \\[1cm]
+
+\rule{\linewidth}{0.4pt} \\[1cm]
+
+{\large \today} \\[2cm]
+
+\hspace*{-1.5cm}
+\setstretch{1.5}
+\begin{tabular}{ | l | l | }
+  \hline
+  \textbf{Integrantes} & \textbf{Padrón} \\ \hline
+  Davies, Alen & 107084 \\ \hline
+  Lazcano, Luca & 107044 \\ \hline
+  Medone Sabatini, Juan Ignacio & 103878 \\ \hline
+  Bohórquez, Rubén & 109442 \\ \hline
+\end{tabular}
+
+\vfill
+
+\textsc{Facultad de Ingeniería - UBA}
+
+\end{center}
+\end{titlepage}
+
+% --- Index ---
+\tableofcontents
+\newpage
+
+% --- Sections ---
+\section{Resumen}
+% Aquí va el resumen en español.
+
+\section{Palabras clave}
+% Lista de palabras clave.
+
+\section{Abstract}
+% Aquí va el abstract en inglés.
+
+\section{Keywords}
+% Lista de keywords en inglés.
+
+\section{Introducción}
+% Introducción general del proyecto.
+
+\section{Estado del Arte}
+% Revisión de trabajos previos, tecnología existente, etc.
+
+\section{Problema detectado y/o faltante}
+% Qué problema se detectó, por qué es relevante, etc.
+
+\section{Solución propuesta}
+% Descripción de la propuesta para resolver el problema.
+
+\section{Evaluación preliminar de impacto social y ambiental}
+% Análisis del impacto potencial del proyecto.
+
+\section{Metodología}
+% Enfoque metodológico que se aplicará.
+
+\section{Experimentación y/o validación}
+% Cómo se probará la solución, experimentos, etc.
+
+\section{Plan de actividades}
+% Cronograma o planificación de tareas.
+
+\section{Referencias}
+% Bibliografía en formato apropiado (puede usarse BibTeX si se desea).
+
+\section{Anexos}
+% Cualquier material adicional, gráficas, códigos, etc.
+
+\end{document}
