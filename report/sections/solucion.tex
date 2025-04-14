@@ -1,4 +1,22 @@
 % En esta sección se presenta una breve descripción de la solución que se propone, el principal objetivo de esta sección es poder dar el bosquejo de la solución para que pueda ser evaluado. No es necesario detalles, pero sí mencionar sus componentes generales.
-% Si las tecnoEvaluación preliminar de impacto económico, social y ambientallogías que se van a utilizar ya están establecidas, se deberán incluir aquí. De no estar definidas todas, enumerar las que sí están definidas y explicar qué consideraciones tendrán en cuenta para definir las restantes.
+% Si las tecnologías que se van a utilizar ya están establecidas, se deberán incluir aquí. De no estar definidas todas, enumerar las que sí están definidas y explicar qué consideraciones tendrán en cuenta para definir las restantes.
 
 Solución propuesta.
+
+La solución propuesta consiste en el desarrollo de un sistema de software integral para la operación de una estación terrena dedicada al control de satélites tipo CubeSat. Este sistema centralizará en una única plataforma todas las funciones necesarias para realizar tareas de telemetría, seguimiento y control (TT\&C), actualmente distribuidas en múltiples herramientas de uso manual.
+
+El software estará compuesto por varios módulos principales:
+
+\begin{itemize}
+    \item \textit{Interfaz gráfica de usuario (GUI):} permitirá a los operadores interactuar fácilmente con el sistema para visualizar datos, controlar antenas y gestionar las comunicaciones.
+    
+    \item \textit{Módulo de seguimiento orbital:} calculará y actualizará en tiempo real la posición del satélite y orientará las antenas automáticamente, integrándose con motores o controladores físicos.
+    
+    \item \textit{Módulo SDR (radio definida por software):} gestionará la transmisión y recepción de señales mediante dispositivos SDR compatibles.
+    
+    \item \textit{Módulo de telemetría y comandos:} permitirá decodificar, almacenar y visualizar los datos recibidos, así como enviar instrucciones al satélite.
+    
+    \item \textit{Base de datos:} almacenará la telemetría histórica, registros de misión y parámetros de configuración.
+\end{itemize}
+
+El sistema será desarrollado utilizando Rust como lenguaje principal, dada su alta performance, seguridad en memoria y creciente adopción en sistemas embebidos y de alto rendimiento. Se emplearán además herramientas de código abierto como GNU Radio para el procesamiento de señales (mediante bindings o integración externa) y bibliotecas para el cálculo orbital. Las decisiones tecnológicas restantes se definirán considerando la facilidad de integración con el hardware disponible y los requisitos específicos del entorno académico del proyecto Astar.

@@ -26,7 +26,7 @@ This software aims to serve as the control system for a **ground station** that 
 
 ## 👥 Team
 
-- Alen Davies  
+- Alen Davies Leccese  
 - Luca Lazcano  
 - Juan Ignacio Medone Sabatini
 - Rubén Bohórquez  

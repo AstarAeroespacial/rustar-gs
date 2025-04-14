@@ -1,25 +1,22 @@
 \documentclass[a4paper,11pt]{article}
 
-% --- Language and font ---
 \usepackage[spanish]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{mathptmx} % Times New Roman-like
+\usepackage{parskip}
 
-% --- Layout and spacing ---
 \usepackage{geometry}
 \geometry{margin=2.5cm}
 \usepackage{setspace}
 \onehalfspacing % Line spacing 1.5
 
 \usepackage{parskip}
-\setlength{\parskip}{0pt} % No space after paragraph
-\setlength{\parindent}{0pt} % Optional: no indent
+%\setlength{\parskip}{0pt} % No space after paragraph
+\setlength{\parindent}{0pt} % No indent
 
-% --- Graphics ---
 \usepackage{graphicx}
 
-% --- Title formatting ---
 \usepackage{titlesec}
 \titleformat{\section}
   {\normalfont\fontsize{16}{18}\bfseries}{\thesection}{1em}{}
@@ -35,56 +32,22 @@
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[C]{\textit{RUSTAR - Software para estación terrena}}
-\fancyfoot[L]{Davies, Lazcano, Medone Sabatini, Bohórquez}
+\fancyfoot[L]{Davies Leccese, Lazcano, Medone Sabatini, Bohórquez}
 \fancyfoot[R]{\thepage}
 
-% --- Document begins ---
 \begin{document}
 
-% --- Cover Page ---
-\begin{titlepage}
-\begin{center}
+% \section{Caratula}
+\input{sections/caratula}
 
-\includegraphics[width=7cm]{fiuba_logo.jpg} \\[2cm]
-
-\textsc{\Large Trabajo Profesional} \\[0.5cm]
-{\huge \bfseries RUSTAR \\[0.3cm]
-Software para estación terrena} \\[1cm]
-
-\rule{\linewidth}{0.4pt} \\[1cm]
-
-{\large \today} \\[2cm]
-
-\hspace*{-1.5cm}
-\setstretch{1.5}
-\begin{tabular}{ | l | l | }
-  \hline
-  \textbf{Integrantes} & \textbf{Padrón} \\ \hline
-  Davies, Alen & 107084 \\ \hline
-  Lazcano, Luca & 107044 \\ \hline
-  Medone Sabatini, Juan Ignacio & 103878 \\ \hline
-  Bohórquez, Rubén & 109442 \\ \hline
-\end{tabular}
-
-\vfill
-
-\textsc{Facultad de Ingeniería - UBA}
-
-\end{center}
-\end{titlepage}
-
-% --- Index ---
 \tableofcontents
 \newpage
 
-% --- Sections ---
 \section{Resumen}
-% Aquí va el resumen en español.
 \input{sections/resumen}
 \newpage
 
 \section{Palabras clave}
-% Lista de palabras clave.
 \input{sections/palabras\_clave}
 \newpage
 
@@ -93,56 +56,46 @@ Software para estación terrena} \\[1cm]
 \newpage
 
 \section{Keywords}
-% Lista de keywords en inglés.
 \input{sections/keywords}
 \newpage
 
 \section{Introducción}
-% Introducción general del proyecto.
 \input{sections/intro}
 \newpage
 
 \section{Estado del Arte}
-% Revisión de trabajos previos, tecnología existente, etc.
 \input{sections/estado\_del\_arte}
 \newpage
 
 \section{Problema detectado y/o faltante}
-% Qué problema se detectó, por qué es relevante, etc.
 \input{sections/problema}
 \newpage
 
 \section{Solución propuesta}
-% Descripción de la propuesta para resolver el problema.
 \input{sections/solucion}
 \newpage
 
 \section{Evaluación preliminar de impacto social y ambiental}
-% Análisis del impacto potencial del proyecto.
 \input{sections/impacto}
 \newpage
 
 \section{Metodología}
-% Enfoque metodológico que se aplicará.
 \input{sections/metodologia}
 \newpage
 
 \section{Experimentación y/o validación}
-% Cómo se probará la solución, experimentos, etc.
 \input{sections/experimentacion}
 \newpage
 
 \section{Plan de actividades}
-% Cronograma o planificación de tareas.
 \input{sections/plan}
 \newpage
 
 \section{Referencias}
-% Bibliografía en formato apropiado (puede usarse BibTeX si se desea).
 \input{sections/referencias}
 \newpage
 
 \section{Anexos}
-% Cualquier material adicional, gráficas, códigos, etc.
+\input{sections/glosario}
 
 \end{document}

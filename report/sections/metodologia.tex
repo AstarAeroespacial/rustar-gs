@@ -4,3 +4,34 @@
 % Como todo proyecto tiene riesgos, deberá haber una lista de los riesgos iniciales del proyecto.
 
 Metodología.
+
+El proyecto será abordado siguiendo una metodología iterativa e incremental, basada en buenas prácticas del desarrollo ágil de software. El trabajo se organizará en fases, con entregas parciales que permitirán validar los avances funcionales y técnicos del sistema. Estas iteraciones facilitarán también la integración progresiva con el hardware disponible, así como la incorporación de mejoras a partir del uso práctico del sistema.
+
+\textbf{Roles}
+
+\begin{itemize}
+    \item \textit{Estudiantes desarrolladores:} responsables del diseño, implementación y prueba del software. También realizarán documentación técnica y de usuario, y coordinarán la integración del sistema con los distintos dispositivos físicos involucrados.
+    
+    \item \textit{Tutores académicos:} acompañarán el desarrollo mediante reuniones periódicas, revisión de avances y guía técnica. Su rol será clave en la validación del enfoque metodológico, la revisión de decisiones tecnológicas y el alineamiento con los objetivos del proyecto Astar.
+    
+    \item \textit{Tutores técnicos (en caso de participación de otros miembros del proyecto Astar):} podrán colaborar puntualmente con el conocimiento específico sobre hardware, protocolos de comunicación o diseño del satélite. También pueden aportar feedback sobre la experiencia de usuario del software en un contexto de uso diario
+\end{itemize}
+    
+\textbf{Proceso de desarrollo}
+
+El desarrollo del software se realizará en el lenguaje de programación Rust, aplicando principios de diseño modular y reutilizable. Se dividirá el sistema en componentes independientes (GUI, módulo SDR, seguimiento orbital, base de datos, etc.) que se desarrollarán y probarán en forma paralela y coordinada.
+
+Se utilizarán herramientas de control de versiones (como Git), gestión de tareas y documentación continua. Las pruebas se realizarán en entornos simulados y luego en condiciones reales con el hardware de la estación terrena.
+
+\textbf{Riesgos iniciales identificados}
+\begin{itemize}
+    \item \textit{Integración con hardware SDR:} las bibliotecas existentes en Rust para manejar SDRs son limitadas y podrían requerir el uso de FFI (interfaces a C/C++) o el desarrollo de wrappers propios.
+    
+    \item \textit{Disponibilidad de hardware:} el avance del desarrollo puede verse condicionado por la disponibilidad física del equipamiento de la estación terrena (antenas, motores, radios).
+    
+    \item \textit{Curva de aprendizaje de Rust:} si bien es un lenguaje adecuado para este tipo de sistemas, su uso requiere experiencia, y su ecosistema aún está en crecimiento, especialmente en interfaces gráficas y procesamiento de señales.
+    
+    \item \textit{Validación en entorno real:} la conexión efectiva con un satélite solo podrá probarse durante los pasos orbitales, lo que impone una ventana de tiempo muy limitada para verificar ciertas funcionalidades.
+
+    \item \textit{Interacción con el equipo de Astar:} el proyecto requiere de interacción continua y constante con el resto del equipo de desarrollo del CubeSat, la cual puede verse interrumpida por complicaciones en otras partes del proyecto, diferencias de horarios, etc.
+\end{itemize}
