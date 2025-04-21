@@ -1,21 +1,38 @@
-% En esta sección se hace un breve mapeo documental de los avances relacionados a la aplicación a desarrollar y es la base para demostrar la validez del proyecto. Aquí se remarca que, aunque es un trabajo profesional, el mismo debe ser innovador y encontrarte en el estado del arte de la ingeniería del software.
+\section*{Estado del arte y justificación del proyecto}
 
-Herramientas actualmente utilizadas en estaciones terrenas:
+\subsection*{Herramientas actualmente utilizadas en estaciones terrenas}
 
-GNU Radio: herramienta poderosa de radio definida por software (SDR), flexible pero con curva de aprendizaje alta, sin interfaz específica para TT\&C.
+Actualmente, en ambientes y organizaciones académicas y de la industria se utilizan varias herramientas para TT\&C en el ámbito de los CubeSats, por ejemplo:
 
-Orbitron o GPredict: software para predicción y seguimiento satelital, útil pero no integrable directamente con procesamiento de señales o bases de datos de telemetría.
+\begin{itemize}
+    \item \textit{GNU Radio:} herramienta poderosa de radio definida por software (SDR), altamente flexible y extensible, pero con una curva de aprendizaje pronunciada y sin una interfaz orientada específicamente a operaciones TT\&C.
+    
+    \item \textit{Orbitron} y \textit{GPredict:} aplicaciones utilizadas para predicción y seguimiento satelital, útiles para el cálculo de efemérides y visualización de órbitas, pero no integrables directamente con procesamiento de señales ni con sistemas de gestión de telemetría.
+    
+    \item \textit{SatNOGS:} red global y conjunto de herramientas open-source para estaciones terrenas automatizadas. Aunque ofrece una infraestructura avanzada, está más enfocada en redes colaborativas y recopilación pasiva de datos, lo cual limita su aplicabilidad para operaciones dedicadas y control activo de CubeSats en entornos académicos.
+\end{itemize}
 
-SatNOGS: red global y software para estaciones terrenas open-source. Aunque es avanzado y automatizado, está pensado más para redes comunitarias que para operaciones específicas de CubeSats en entornos académicos.
+\subsection*{Limitaciones de las soluciones actuales}
 
-Limitaciones de las soluciones actuales
-No existe una herramienta única que integre todas las funcionalidades necesarias (seguimiento orbital, SDR, visualización, control).
+Si bien el equipo de Astar ha trabajado hasta ahora con un \textit{stack} de tecnologías existentes, las mismas tienen varias limitaciones que ralentizan el desarrollo del proyecto, a saber:
 
-Requieren operación manual, conocimientos técnicos avanzados y coordinación entre varios programas.
+\begin{itemize}
+    \item No existe actualmente una solución única que integre en un mismo entorno las funcionalidades de seguimiento orbital, control de antenas, recepción/transmisión SDR, visualización de datos y envío de comandos.
+    
+    \item Las herramientas disponibles exigen operación manual, conocimientos técnicos avanzados y coordinación entre múltiples aplicaciones heterogéneas.
+    
+    \item Varias de estas soluciones no están diseñadas para adaptarse fácilmente a hardware específico ni a los requerimientos de proyectos educativos o experimentales con recursos limitados.
+\end{itemize}
 
-Algunas no están diseñadas para integrarse fácilmente con hardware específico o necesidades académicas locales.
+\subsection*{Propuesta de innovación}
 
-Propuesta de innovación
+Este proyecto propone el desarrollo de una plataforma unificada, modular y extensible, que integre las capacidades necesarias para operar una estación terrena académica de forma automatizada. La solución se centrará en:
 
-Este proyecto busca llenar ese vacío desarrollando una solución integrada, modular y de fácil uso, centrada en las necesidades del proyecto Astar. La interfaz gráfica, la integración directa con el hardware y la automatización del flujo de trabajo representan una mejora sustancial frente a las herramientas existentes, adaptada al contexto educativo y experimental.
+\begin{itemize}
+    \item Una interfaz gráfica intuitiva orientada a operaciones TT\&C.
+    \item Integración directa con hardware SDR y de control de antenas.
+    \item Automatización del flujo de trabajo satelital (desde el seguimiento hasta la decodificación de datos).
+    \item Adaptabilidad al entorno académico mediante documentación accesible, facilidad de despliegue y código abierto.
+\end{itemize}
 
+En este sentido, el sistema busca posicionarse dentro del estado del arte de las herramientas para estaciones terrenas de CubeSats, aportando una solución innovadora tanto por su enfoque de integración como por su adecuación a las necesidades de instituciones educativas y proyectos de investigación aplicada.

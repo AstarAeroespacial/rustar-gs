@@ -1,10 +1,8 @@
 \documentclass[a4paper,11pt]{article}
-
 \usepackage[spanish]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{mathptmx} % Times New Roman-like
-\usepackage{parskip}
 
 \usepackage{geometry}
 \geometry{margin=2.5cm}
@@ -12,10 +10,13 @@
 \onehalfspacing % Line spacing 1.5
 
 \usepackage{parskip}
-%\setlength{\parskip}{0pt} % No space after paragraph
+% \setlength{\parskip}{0pt} % No space after paragraph
 \setlength{\parindent}{0pt} % No indent
 
 \usepackage{graphicx}
+
+\usepackage[hyphens]{url}
+\usepackage{hyperref}
 
 \usepackage{titlesec}
 \titleformat{\section}
@@ -32,12 +33,11 @@
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[C]{\textit{RUSTAR - Software para estación terrena}}
-\fancyfoot[L]{Davies Leccese, Lazcano, Medone Sabatini, Bohórquez}
+\fancyfoot[L]{Bohórquez, Davies Leccese, Lazcano, Medone Sabatini}
 \fancyfoot[R]{\thepage}
 
 \begin{document}
 
-% \section{Caratula}
 \input{sections/caratula}
 
 \tableofcontents
@@ -95,7 +95,11 @@
 \input{sections/referencias}
 \newpage
 
-\section{Anexos}
+\section{Glosario}
 \input{sections/glosario}
+\newpage
+
+\section{Anexos}
+\newpage
 
 \end{document}

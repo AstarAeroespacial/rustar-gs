@@ -1,15 +1,21 @@
-% En esta sección se debe presentar el problema detectado y/o oportunidad de mejora relacionada con la construcción de la aplicación presentada. La misma debe ser redactada de manera clara y concisa debe ser entendida en la primera lectura, este ítem es de fundamental importancia al momento de ser evaluado el proyecto.
+\section*{Planteo del problema}
 
-Actualmente, el proyecto Astar cuenta con una estación terrena compuesta de una antena que puede posicionarse para seguir la órbita de satélites conocidos, y recibir datos de estos mediante un dispositivo de SDR, específicamente el RTL-SDR. Esta configuración sólo permite la recepción de señales. Es necesario un conjunto de programas externos para el control de la antena, y la recepción y demodulación de señales. Este enfoque fragmentado genera varias dificultades:
+El proyecto Astar cuenta actualmente con una estación terrena basada en una antena direccionable y un dispositivo de radio definida por software (SDR), específicamente un RTL-SDR, que permite la recepción de señales de satélites en órbita. Sin embargo, la operación del sistema depende de un conjunto fragmentado de programas externos para el control de la antena, la recepción y demodulación de señales, y el manejo de datos.
+
+Esta arquitectura presenta importantes limitaciones:
 
 \begin{itemize}
-    \item \textit{Complejidad operativa:} Los operadores deben interactuar con múltiples sistemas que no están integrados, lo que aumenta la carga cognitiva y reduce la eficiencia operativa.
-
-    \item \textit{Falta de integración de funcionalidades:} Las distintas herramientas no se comunican entre sí de forma automática, lo que limita la capacidad de realizar acciones coordinadas y optimizadas.
-
-    \item \textit{Limitación de las posibilidades: }
+    \item \textit{Complejidad operativa:} el uso de múltiples herramientas no integradas obliga a los operadores a realizar tareas manuales y descoordinadas, lo que incrementa la carga cognitiva y dificulta la operación fluida.
+    
+    \item \textit{Falta de automatización e integración:} las aplicaciones actuales no comparten información entre sí, lo que impide acciones coordinadas como la sincronización entre el posicionamiento de la antena y la adquisición de datos.
+    
+    \item \textit{Limitaciones funcionales:} el sistema actual solo permite la recepción de datos. No es posible transmitir señales, lo que imposibilita la operación de misiones que requieran telemetría y control (TT\&C).
 \end{itemize}
 
-Además, la configuración actual no permite la transmisión de señales, por lo cual es imposible el control de una futura misión satelital.
+Estas restricciones no solo dificultan el uso de la estación, sino que también limitan el potencial del proyecto Astar para operar satélites reales en el futuro. El enfoque actual ralentiza la toma de decisiones, reduce la eficiencia y dificulta el entrenamiento de nuevos usuarios en contextos académicos.
 
-Estas limitaciones dificultan la operación de la estación terrena, ralentizan el proceso de toma de decisiones y limitan el potencial de la misión satelital. Así, se presenta una oportunidad de mejora al centralizar todas las funcionalidades en una sola plataforma unificada, simplificando el flujo de trabajo, reduciendo la complejidad y mejorando la eficiencia operativa. El objetivo de este trabajo es entonces desarrollar un sistema integrado que provea una interfaz sencilla para llevar a cabo todas las tareas relacionadas con la telemetría y control del satélite.
+\textbf{Oportunidad de mejora}
+
+Se identifica una oportunidad clara para mejorar la operatividad de la estación terrena mediante el desarrollo de una solución unificada, integrada y centrada en el usuario. Este sistema permitirá controlar todos los aspectos críticos (seguimiento orbital, recepción y análisis de señales, interfaz con la antena y, a futuro, transmisión de comandos), desde una única plataforma con una interfaz gráfica simple e intuitiva.
+
+El objetivo de este proyecto es diseñar e implementar esa solución, contribuyendo significativamente a la capacidad operativa y experimental del proyecto Astar y del entorno académico en el que se desarrolla.
