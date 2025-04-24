@@ -1,21 +1,28 @@
-\subsection*{Planteo del problema}
+\subsection*{Limitaciones de las soluciones actuales}
 
-El proyecto Astar cuenta actualmente con una estación terrena basada en una antena direccionable y un dispositivo de radio definida por software (SDR), específicamente un RTL-SDR, que permite la recepción de señales de satélites en órbita. Sin embargo, la operación del sistema depende de un conjunto fragmentado de programas externos para el control de la antena, la recepción y demodulación de señales, y el manejo de datos.
+El proyecto Astar cuenta actualmente con una estación terrena basada en una antena direccionable y un dispositivo de (\textit{SDR}), específicamente un \textit{RTL-SDR}, que permite la recepción de señales de satélites en órbita. Sin embargo, la operación del sistema depende de un conjunto fragmentado de programas externos para el control de la antena, la recepción y demodulación de señales, y el manejo de datos.
 
 Esta arquitectura presenta importantes limitaciones:
 
 \begin{itemize}
-    \item \textit{Complejidad operativa:} el uso de múltiples herramientas no integradas obliga a los operadores a realizar tareas manuales y descoordinadas, lo que incrementa la carga cognitiva y dificulta la operación fluida.
+    \item \textbf{Complejidad operativa:} el uso de múltiples herramientas no integradas obliga a los operadores a realizar tareas manuales y descoordinadas, lo que incrementa la carga cognitiva y dificulta la operación fluida.
     
-    \item \textit{Falta de automatización e integración:} las aplicaciones actuales no comparten información entre sí, lo que impide acciones coordinadas como la sincronización entre el posicionamiento de la antena y la adquisición de datos.
+    \item \textbf{Falta de automatización e integración:} las aplicaciones actuales no comparten información entre sí, lo que impide acciones coordinadas como la sincronización entre el posicionamiento de la antena y la adquisición de datos.
     
-    \item \textit{Limitaciones funcionales:} el sistema actual solo permite la recepción de datos. No es posible transmitir señales, lo que imposibilita la operación de misiones que requieran telemetría y control (TT\&C).
+    \item \textbf{Limitaciones funcionales:} el sistema actual solo permite la recepción de datos. No es posible transmitir señales, lo que imposibilita la operación de misiones que requieran \textit{TT\&C}.
 \end{itemize}
 
-Estas restricciones no solo dificultan el uso de la estación, sino que también limitan el potencial del proyecto Astar para operar satélites reales en el futuro. El enfoque actual ralentiza la toma de decisiones, reduce la eficiencia y dificulta el entrenamiento de nuevos usuarios en contextos académicos.
+Estas restricciones no solo dificultan el uso de la estación, sino que también limitan el potencial del proyecto Astar para operar satélites propios en el futuro. El enfoque actual ralentiza la toma de decisiones, reduce la eficiencia y dificulta el entrenamiento de nuevos usuarios en contextos académicos.
 
 \subsection*{Oportunidad de mejora}
 
-Se identifica una oportunidad clara para mejorar la operatividad de la estación terrena mediante el desarrollo de una solución unificada, integrada y centrada en el usuario. Este sistema permitirá controlar todos los aspectos críticos (seguimiento orbital, recepción y análisis de señales, interfaz con la antena y, a futuro, transmisión de comandos), desde una única plataforma con una interfaz gráfica simple e intuitiva.
+Se identifica una oportunidad interesante para el desarrollo de una plataforma unificada, modular y extensible, que integre las capacidades necesarias para operar una estación terrena académica de forma automatizada. La solución se centrará en:
 
-El objetivo de este proyecto es diseñar e implementar esa solución, contribuyendo significativamente a la capacidad operativa y experimental del proyecto Astar y del entorno académico en el que se desarrolla.
+\begin{itemize}
+    \item Una interfaz gráfica intuitiva orientada a operaciones \textit{TT\&C}.
+    \item Integración directa con hardware \textit{SDR} y de control de antenas.
+    \item Automatización del flujo de trabajo satelital (desde el seguimiento hasta la decodificación de datos).
+    \item Adaptabilidad al entorno académico mediante documentación accesible, facilidad de despliegue y código abierto.
+\end{itemize}
+
+En este sentido, el sistema busca posicionarse dentro del estado del arte de las herramientas para estaciones terrenas de \textit{CubeSats}, aportando una solución innovadora tanto por su enfoque de integración como por su adecuación a las necesidades de instituciones educativas y proyectos de investigación aplicada.
