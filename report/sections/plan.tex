@@ -1,12 +1,10 @@
-% En esta sección se debe definir todo el proceso de construcción de software, elegir metodología de trabajo, entregables, hitos de avance, pruebas de código, etc. Se debe explicar la metodología elegida y su adaptación al trabajo particular. En la descripción de la metodología se debe incluir una descripción de cómo se gestiona el alcance, tiempos, estimaciones, indicadores, riesgos, calidad, reuniones dentro del equipo y con los interesados. Se hace especial hincapié en el hecho de la documentación del sistema en cuestión, incluyendo documentación técnica de entregables, documentación funcional y de diseño, minutas de reuniones, etc.
-
-\section*{Proceso de desarrollo de software}
+\subsection*{Proceso de desarrollo de software}
 
 El desarrollo del software para la estación terrena se organizará en torno a una metodología ágil adaptada al contexto académico y a la naturaleza del proyecto. Se utilizará una variante de \textit{Scrum}, con iteraciones continuas, revisiones periódicas y entregas incrementales, lo que permite una mejora constante del producto y flexibilidad frente a cambios en los requisitos.
 
 \subsection*{Metodología de trabajo}
 
-El trabajo se dividirá en sprints de longitud a determinar, ajustables en función de la carga académica y el avance del proyecto. Cada sprint incluirá las siguientes etapas:
+El trabajo se dividirá en sprints de corta duración (longitud exacta a determinar), ajustables en función de la carga académica y el avance del proyecto. Cada sprint incluirá las siguientes etapas:
 
 \begin{itemize}
     \item Planificación del sprint.
@@ -15,50 +13,25 @@ El trabajo se dividirá en sprints de longitud a determinar, ajustables en funci
     \item Documentación técnica y funcional.
 \end{itemize}
 
-Al final de cada iteración se realizará una reunión de seguimiento para evaluar avances, detectar obstáculos y ajustar estimaciones. También se mantendrán reuniones periódicas con los tutores y con los interesados del proyecto para asegurar la alineación con los objetivos generales.
+Al final de cada iteración se realizará una reunión de seguimiento para evaluar avances, detectar obstáculos y ajustar estimaciones. También se mantendrán reuniones periódicas con los tutores y los interesados del proyecto para asegurar la alineación con los objetivos generales.
 
 Se buscará obtener un producto mínimo viable (MVP) en etapas tempranas, que cumpla con los requerimientos más críticos del sistema. A partir de allí, el desarrollo continuará de forma incremental hasta alcanzar la solución completa.
 
 \subsection*{Gestión de alcance, tiempo y calidad}
 
-El alcance del proyecto se define como la entrega de un sistema funcional que permita la recepción, procesamiento y envío de datos entre la estación terrena y el satélite, integrando una interfaz de usuario y funciones de control remoto. El alcance se gestionará a través de una lista priorizada de funcionalidades, organizadas en entregables parciales.
+El alcance del proyecto se define como la entrega de un sistema funcional que permita la recepción, procesamiento y envío de datos entre la estación terrena y el satélite, integrando una interfaz de usuario y funciones de control remoto. Se gestionará a través de una lista priorizada de funcionalidades, organizadas en entregables parciales.
 
-Los tiempos se estimarán al inicio de cada sprint y se ajustarán iterativamente en función del desempeño real. Como indicadores de avance se utilizarán: número de funcionalidades completadas, cumplimiento de hitos, cobertura de pruebas, porcentaje de documentación técnica y cantidad de errores detectados y resueltos.
+Los tiempos se estimarán al inicio de cada sprint y se ajustarán iterativamente en función del desempeño actual. Como indicadores de avance se utilizarán: número de funcionalidades completadas, cumplimiento de hitos, cobertura de pruebas, porcentaje de documentación técnica y cantidad de errores detectados y resueltos.
 
 La calidad del software se garantizará mediante revisiones de código entre pares, pruebas automatizadas, validaciones funcionales y documentación exhaustiva. Además, cada funcionalidad entregada deberá cumplir con criterios de aceptación previamente definidos.
 
 \subsection*{Gestión de riesgos}
 
-Se identificaron posibles riesgos técnicos y organizativos, tales como:
-
-\begin{itemize}
-    \item Dificultades en la integración con dispositivos SDR (e.g., incompatibilidad de drivers o librerías).
-    \item Problemas de precisión en el seguimiento satelital y control de la antena.
-    \item Limitaciones de hardware disponibles para pruebas.
-    \item Cambios de requerimientos o disponibilidad reducida de integrantes del equipo.
-\end{itemize}
-
-Estos riesgos serán abordados mediante pruebas tempranas de viabilidad, prototipos rápidos y la definición de soluciones alternativas. Se llevará un registro actualizado de los riesgos y su tratamiento.
+Se identificaron posibles riesgos técnicos y organizativos, mencionados en la sección anterior. Estos riesgos serán abordados mediante pruebas tempranas de viabilidad, prototipos rápidos y definición de soluciones alternativas. Se llevará un registro actualizado de los riesgos y su tratamiento.
 
 \subsection*{Gestión de cambios}
 
 Los cambios en los requisitos o en la planificación serán evaluados durante las reuniones de revisión de sprint. En caso de ser aceptados, se actualizará el backlog del proyecto y se ajustará la planificación futura.
-
-\subsection*{Pruebas y verificación}
-
-Durante el desarrollo se incluirán pruebas unitarias, de integración y de sistema. Se realizarán validaciones funcionales con usuarios en un entorno lo más próximo posible a la operación real. Se utilizarán pruebas automatizadas siempre que sea viable, integradas con herramientas de integración continua.
-
-Las herramientas de prueba incluirán: \texttt{cargo test}, simuladores de señal y validadores de flujo de datos binario. Además, se definirán casos de prueba manuales para la interfaz de usuario y control remoto.
-
-\subsection*{Herramientas de soporte}
-
-\begin{itemize}
-    \item \textbf{Control de versiones:} Git y GitHub.
-    \item \textbf{Gestión de tareas y documentación:} Github Projects y Notion.
-    \item \textbf{Automatización y CI:} GitHub Actions.
-    \item \textbf{Documentación técnica:} Markdown y LaTeX.
-    \item \textbf{Seguimiento de errores y bugs:} GitHub Issues.
-\end{itemize}
 
 \subsection*{Documentación}
 

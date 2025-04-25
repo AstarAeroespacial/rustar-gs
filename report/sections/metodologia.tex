@@ -20,16 +20,16 @@ Las personas involucradas en el proyecto tendrán los siguientes roles:
 
 Durante el proceso de desarrollo del sistema se aplicarán principios de diseño modular, separación de responsabilidades y reutilización de componentes. Los principales módulos se diseñarán como componentes acoplados de forma débil, facilitando su desarrollo en paralelo y su posterior integración. Como es necesaria la integración del sistema con varios componentes de hardware (receptores y emisores de radiofrecuencia, motores de control de la antena, etc.), se procurará que la mayor parte de los componentes sean agnósticos a los detalles específicos de cada modelo, para procurar la mayor reutilizabilidad posible de componentes de software con diversas configuraciones de hardware subyacentes.
 
-Se utilizarán herramientas como:
+Se utilizarán las siguientes herramientas:
 
 \begin{itemize}
-    \item Git para control de versiones.
-    \item Tableros de seguimiento para la planificación de tareas e hitos (\textit{Github Projects}).
-    \item Documentación técnica continua utilizando herramientas de generación automática desde el código.
-    \item Pruebas unitarias y funcionales con simuladores antes de la prueba con hardware real.
-    \item Features propias del lenguaje para la modularización, manejo de dependencias y desarrollo de pruebas.
-    \item Ensayos y pruebas de integración con hardware real cuando los sistemas estén listos.
-    \item Integración de los avances y entrega continua para garantizar la calidad y funcionamiento del código en todo momento.
+    \item \textbf{Recopilación de proyectos de referencia e información general:} Notion.
+    \item \textbf{Control de versiones:} Git y GitHub.
+    \item \textbf{Gestión de tareas e hitos:} Github Projects.
+    \item \textbf{Automatización y CI:} GitHub Actions.
+    \item \textbf{Documentación técnica:} Markdown y LaTeX.
+    \item \textbf{Documentación del código:} \texttt{cargo doc}.
+    \item \textbf{Seguimiento de errores y bugs:} GitHub Issues.
 \end{itemize}
 
 \subsection*{Riesgos iniciales identificados}
