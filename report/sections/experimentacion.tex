@@ -1,23 +1,19 @@
-% Aquí se debe definir un conjunto de pruebas que serán entregadas como resultado final del proyecto y verificación del mismo. Las mismas podrán ser ajustadas más adelante.
-
-Experimentación y/o validación.
-
 A continuación, se definen un conjunto preliminar de pruebas que serán utilizadas para verificar el correcto funcionamiento del software desarrollado para la estación terrena. Estas pruebas serán refinadas a lo largo del proyecto en función del avance del desarrollo y de las decisiones de diseño adoptadas.
 
 \begin{itemize}
-    \item \textbf{Prueba de recepción de datos desde SDR:} Verificar la capacidad del sistema para recibir señales desde un dispositivo SDR. Validar que los datos brutos sean correctamente capturados y almacenados.
+    \item \textbf{Prueba de recepción de datos desde \textit{SDR}:} Verificar la capacidad del sistema para recibir señales desde un dispositivo \textit{SDR}. Validar que los datos crudos sean correctamente capturados y almacenados.
 
-    \item \textbf{Prueba de demodulación:} Confirmar que los datos recibidos pueden ser correctamente demodulados según el esquema utilizado. Comparar datos de entrada y salida para validar integridad.
+    \item \textbf{Prueba de demodulación:} Confirmar que las señales recibidas puedan ser correctamente demoduladas según el esquema utilizado. Comparar datos de entrada y salida para validar integridad.
 
-    \item \textbf{Prueba de decodificación y validación de telemetría:} Asegurar que los datos demoduladas puedan ser interpretados correctamente según el protocolo definido. Validar detección de errores, campos de control y estructura de paquetes.
+    \item \textbf{Prueba de decodificación y validación de telemetría:} Asegurar que los datos ya demodulados puedan ser interpretados correctamente según el protocolo definido. Validar detección de errores, campos de control y estructura de paquetes.
 
-    \item \textbf{Prueba de transmisión de comandos:} Verificar que el sistema pueda codificar y modular correctamente comandos hacia el satélite. Validar el flujo desde la interfaz de usuario hasta la señal enviada por SDR.
+    \item \textbf{Prueba de transmisión de comandos:} Validar que el sistema pueda codificar y modular correctamente comandos hacia el satélite. Validar el flujo desde la interfaz de usuario hasta la señal enviada por \textit{SDR}.
 
     \item \textbf{Prueba de seguimiento orbital:} Simular un paso orbital y verificar que el sistema actualice la posición esperada del satélite en tiempo real. Confirmar integración con herramientas de predicción y control de antena.
 
-    \item \textbf{Prueba de interfaz de usuario:} Evaluar la usabilidad y funcionalidad de la interfaz para operadores. Verificar que todas las operaciones básicas (recepción, transmisión, seguimiento, monitoreo) estén disponibles y sean accesibles.
-
     \item \textbf{Prueba de operación remota:} Ejecutar el sistema desde un entorno remoto y validar que todas las funcionalidades sean accesibles. Asegurar comunicación segura y fluida entre el cliente remoto y el servidor local.
-
+    
     \item \textbf{Pruebas de robustez y tolerancia a fallos:} Simular condiciones adversas como pérdida de señal, interrupciones en la recepción/transmisión o errores en los datos. Verificar que el sistema responde adecuadamente y conserva la integridad de su estado.
+    
+    \item \textbf{Prueba de interfaz de usuario:} Evaluar la usabilidad y funcionalidad de la interfaz para operadores. Verificar que todas las operaciones básicas (recepción, transmisión, seguimiento, monitoreo) estén disponibles y sean fácilmente accesibles.
 \end{itemize}

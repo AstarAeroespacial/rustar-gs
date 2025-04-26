@@ -1,37 +1,49 @@
-% Esta sección se usarpa para explicitar la metodología general de trabajo en el proyecto, incluyendo los roles de los tutores y los estudiantes.
-% Como el proyecto va a incluir el desarrollo de un producto, sea de software o un sistema de software-hardware (sistemas embebidos o ciberfísicos), se debe usar esta sección también para especificar el proceso de desarrollo del producto.
-% Si hay cuestiones metodológicas no definidas, explicitarlo y explicar brevemente de qué depende la decisión.
-% Como todo proyecto tiene riesgos, deberá haber una lista de los riesgos iniciales del proyecto.
+\section*{Metodología de trabajo}
 
-Metodología.
+El proyecto se abordará de una forma iterativa e incremental, inspirada en los principios de las metodologías ágiles. Esto permitirá validar continuamente tanto los avances técnicos específicos como las decisiones de diseño, adaptándose a los cambios que puedan surgir durante la integración con el hardware real o la evolución de los requerimientos funcionales por parte del LABi.
 
-El proyecto será abordado siguiendo una metodología iterativa e incremental, basada en buenas prácticas del desarrollo ágil de software. El trabajo se organizará en fases, con entregas parciales que permitirán validar los avances funcionales y técnicos del sistema. Estas iteraciones facilitarán también la integración progresiva con el hardware disponible, así como la incorporación de mejoras a partir del uso práctico del sistema.
+El trabajo se dividirá en fases, con entregas parciales de módulos funcionales. Cada iteración incluirá etapas de análisis e investigación, diseño, desarrollo, prueba e integración, fomentando la retroalimentación constante y la mejora progresiva del sistema.
 
-\textbf{Roles}
+\subsection*{Roles}
+
+Las personas involucradas en el proyecto tendrán los siguientes roles:
 
 \begin{itemize}
-    \item \textit{Estudiantes desarrolladores:} responsables del diseño, implementación y prueba del software. También realizarán documentación técnica y de usuario, y coordinarán la integración del sistema con los distintos dispositivos físicos involucrados.
+    \item \textbf{Estudiantes desarrolladores:} serán responsables de la ingeniería del sistema, incluyendo el diseño de la arquitectura, codificación, pruebas, documentación técnica y coordinación de la integración con los distintos dispositivos físicos (antenas, motores, \textit{SDR}, etc.).
     
-    \item \textit{Tutores académicos:} acompañarán el desarrollo mediante reuniones periódicas, revisión de avances y guía técnica. Su rol será clave en la validación del enfoque metodológico, la revisión de decisiones tecnológicas y el alineamiento con los objetivos del proyecto Astar.
+    \item \textbf{Tutores académicos:} brindarán acompañamiento metodológico y técnico en general. Supervisarán las decisiones de diseño, las tecnologías seleccionadas y el cumplimiento de los objetivos del Trabajo Profesional mediante reuniones periódicas y revisión de entregas.
     
-    \item \textit{Tutores técnicos (en caso de participación de otros miembros del proyecto Astar):} podrán colaborar puntualmente con el conocimiento específico sobre hardware, protocolos de comunicación o diseño del satélite. También pueden aportar feedback sobre la experiencia de usuario del software en un contexto de uso diario
+    \item \textbf{Tutores técnicos (miembros del proyecto Astar):} colaborarán de forma puntual con conocimiento experto en hardware, comunicaciones satelitales, protocolos específicos e integración con otros subsistemas del \textit{CubeSat}. También podrán validar aspectos prácticos de la experiencia de usuario del software.
 \end{itemize}
     
-\textbf{Proceso de desarrollo}
+\subsection*{Proceso de desarrollo}
 
-El desarrollo del software se realizará en el lenguaje de programación Rust, aplicando principios de diseño modular y reutilizable. Se dividirá el sistema en componentes independientes (GUI, módulo SDR, seguimiento orbital, base de datos, etc.) que se desarrollarán y probarán en forma paralela y coordinada.
+Durante el proceso de desarrollo del sistema se aplicarán principios de diseño modular, separación de responsabilidades y reutilización de componentes. Los principales módulos se diseñarán como componentes acoplados de forma débil, facilitando su desarrollo en paralelo y su posterior integración. Como es necesaria la integración del sistema con varios componentes de hardware (receptores y emisores de radiofrecuencia, motores de control de la antena, etc.), se procurará que la mayor parte de los componentes sean agnósticos a los detalles específicos de cada modelo, para procurar la mayor reutilizabilidad posible de componentes de software con diversas configuraciones de hardware subyacentes.
 
-Se utilizarán herramientas de control de versiones (como Git), gestión de tareas y documentación continua. Las pruebas se realizarán en entornos simulados y luego en condiciones reales con el hardware de la estación terrena.
+Se utilizarán las siguientes herramientas:
 
-\textbf{Riesgos iniciales identificados}
 \begin{itemize}
-    \item \textit{Integración con hardware SDR:} las bibliotecas existentes en Rust para manejar SDRs son limitadas y podrían requerir el uso de FFI (interfaces a C/C++) o el desarrollo de wrappers propios.
-    
-    \item \textit{Disponibilidad de hardware:} el avance del desarrollo puede verse condicionado por la disponibilidad física del equipamiento de la estación terrena (antenas, motores, radios).
-    
-    \item \textit{Curva de aprendizaje de Rust:} si bien es un lenguaje adecuado para este tipo de sistemas, su uso requiere experiencia, y su ecosistema aún está en crecimiento, especialmente en interfaces gráficas y procesamiento de señales.
-    
-    \item \textit{Validación en entorno real:} la conexión efectiva con un satélite solo podrá probarse durante los pasos orbitales, lo que impone una ventana de tiempo muy limitada para verificar ciertas funcionalidades.
+    \item \textbf{Recopilación de proyectos de referencia e información general:} Notion.
+    \item \textbf{Control de versiones:} Git y GitHub.
+    \item \textbf{Gestión de tareas e hitos:} Github Projects.
+    \item \textbf{Automatización y CI:} GitHub Actions.
+    \item \textbf{Documentación técnica:} Markdown y LaTeX.
+    \item \textbf{Documentación del código:} \texttt{cargo doc}.
+    \item \textbf{Seguimiento de errores y bugs:} GitHub Issues.
+\end{itemize}
 
-    \item \textit{Interacción con el equipo de Astar:} el proyecto requiere de interacción continua y constante con el resto del equipo de desarrollo del CubeSat, la cual puede verse interrumpida por complicaciones en otras partes del proyecto, diferencias de horarios, etc.
+\subsection*{Riesgos iniciales identificados}
+
+Dado el contexto del proyecto, identificamos los siguientes riesgos que podrían perjudicar y/o ralentizar el desarrollo del mismo:
+
+\begin{itemize}
+    \item \textbf{Integración con hardware \textit{SDR}:} las bibliotecas nativas en Rust son limitadas. Podría ser necesario usar una FFI (Foreign Function Interface) hacia librerías en C/C++ o desarrollar bindings propios, lo cual añade complejidad.
+    
+    \item \textbf{Disponibilidad de hardware:} el acceso limitado o demorado a componentes clave de la estación terrena podría afectar los tiempos de prueba e integración.
+
+    \item \textbf{Validación en entorno real:} la posibilidad de testear funcionalidades con satélites en órbita depende de ventanas de tiempo reducidas (pasos orbitales), lo que limita las oportunidades de validación en condiciones reales.
+
+    \item \textbf{Falta de recursos y herramientas existentes:} según lo investigado por el equipo, actualmente no existen muchas librerías ni proyectos relacionados al procesamiento de señales en Rust, y los existentes están aún en etapas tempranas de desarrollo, por lo que es más probable que tengamos que implementar manualmente funcionalidades que no están soportadas o no funcionan bien en las librerías disponibles.
+    
+    \item \textbf{Dependencia del equipo de Astar:} la colaboración fluida con el equipo del proyecto satelital es fundamental. Problemas de comunicación, solapamiento de actividades o distintas prioridades podrían afectar el regular avance del proyecto.
 \end{itemize}

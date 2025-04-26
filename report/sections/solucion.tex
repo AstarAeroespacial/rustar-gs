@@ -1,22 +1,28 @@
-% En esta sección se presenta una breve descripción de la solución que se propone, el principal objetivo de esta sección es poder dar el bosquejo de la solución para que pueda ser evaluado. No es necesario detalles, pero sí mencionar sus componentes generales.
-% Si las tecnologías que se van a utilizar ya están establecidas, se deberán incluir aquí. De no estar definidas todas, enumerar las que sí están definidas y explicar qué consideraciones tendrán en cuenta para definir las restantes.
+El sistema centralizará en una única plataforma todas las funciones necesarias para realizar tareas de \textit{TT\&C} que actualmente se encuentran distribuidas en múltiples herramientas de uso manual.
 
-Solución propuesta.
-
-La solución propuesta consiste en el desarrollo de un sistema de software integral para la operación de una estación terrena dedicada al control de satélites tipo CubeSat. Este sistema centralizará en una única plataforma todas las funciones necesarias para realizar tareas de telemetría, seguimiento y control (TT\&C), actualmente distribuidas en múltiples herramientas de uso manual.
-
-El software estará compuesto por varios módulos principales:
+El software estará compuesto por los siguientes módulos principales:
 
 \begin{itemize}
-    \item \textit{Interfaz gráfica de usuario (GUI):} permitirá a los operadores interactuar fácilmente con el sistema para visualizar datos, controlar antenas y gestionar las comunicaciones.
+    \item \textbf{Módulo de seguimiento orbital:} calculará y actualizará en tiempo real la posición del satélite a seguir utilizando modelos orbitales. También controlará automáticamente la orientación de las antenas a través del brazo robot de la estación terrena.
     
-    \item \textit{Módulo de seguimiento orbital:} calculará y actualizará en tiempo real la posición del satélite y orientará las antenas automáticamente, integrándose con motores o controladores físicos.
+    \item \textbf{Módulo \textit{SDR}:} se encargará de la transmisión y recepción de señales mediante dispositivos \textit{SDR} compatibles. Permitirá configurar parámetros de modulación, frecuencia y ganancia, integrándose con herramientas como \textit{GNU Radio}.
     
-    \item \textit{Módulo SDR (radio definida por software):} gestionará la transmisión y recepción de señales mediante dispositivos SDR compatibles.
+    \item \textbf{Módulo de telemetría y comandos:} decodificará los datos recibidos, los almacenará en una base de datos y los presentará en tiempo real a través de la \textit{GUI}. Además, gestionará el envío de comandos al satélite de acuerdo a protocolos específicos.
     
-    \item \textit{Módulo de telemetría y comandos:} permitirá decodificar, almacenar y visualizar los datos recibidos, así como enviar instrucciones al satélite.
+    \item \textbf{Base de datos:} almacenará telemetría histórica, registros de eventos y parámetros de configuración, permitiendo consultas eficientes y análisis posteriores.
     
-    \item \textit{Base de datos:} almacenará la telemetría histórica, registros de misión y parámetros de configuración.
+    \item \textbf{Interfaz gráfica de usuario (GUI):} permitirá a los operadores interactuar de manera intuitiva con el sistema para visualizar datos, controlar el movimiento de las antenas y gestionar las comunicaciones con el satélite.
 \end{itemize}
 
-El sistema será desarrollado utilizando Rust como lenguaje principal, dada su alta performance, seguridad en memoria y creciente adopción en sistemas embebidos y de alto rendimiento. Se emplearán además herramientas de código abierto como GNU Radio para el procesamiento de señales (mediante bindings o integración externa) y bibliotecas para el cálculo orbital. Las decisiones tecnológicas restantes se definirán considerando la facilidad de integración con el hardware disponible y los requisitos específicos del entorno académico del proyecto Astar.
+El sistema será desarrollado utilizando \textbf{Rust} como lenguaje principal, debido a su alto rendimiento, garantías de seguridad en memoria y creciente adopción en sistemas embebidos y de control. Para el procesamiento de señales, se emplearán herramientas de código abierto como \textbf{\textit{GNU Radio}}, a través de bindings o integración externa. También se utilizarán bibliotecas especializadas para el cálculo de efemérides orbitales y predicción de pases.
+
+Las decisiones tecnológicas restantes se definirán en función de los siguientes criterios:
+
+\begin{itemize}
+    \item Compatibilidad con el hardware disponible en el laboratorio.
+    \item Facilidad de integración con bibliotecas existentes.
+    \item Licenciamiento abierto y adecuación al entorno académico del proyecto.
+    \item Soporte en plataformas Unix/Linux.
+\end{itemize}
+
+Esta solución buscará minimizar dependencias innecesarias y maximizar la modularidad del código para facilitar futuras ampliaciones o adaptaciones a otras misiones \textit{CubeSat}.

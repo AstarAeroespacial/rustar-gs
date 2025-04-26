@@ -1,3 +1,61 @@
-% En esta sección se debe definir todo el proceso de construcción de software, elegir metodología de trabajo, entregables, hitos de avance, pruebas de código, etc. Se debe explicar la metodología elegida y su adaptación al trabajo particular. En la descripción de la metodología se debe incluir una descripción de cómo se gestiona el alcance, tiempos, estimaciones, indicadores, riesgos, calidad, reuniones dentro del equipo y con los interesados. Se hace especial hincapié en el hecho de la documentación del sistema en cuestión, incluyendo documentación técnica de entregables, documentación funcional y de diseño, minutas de reuniones, etc.
+\subsection*{Proceso de desarrollo de software}
 
-Plan de actividades.
+El desarrollo del software para la estación terrena se organizará en torno a una metodología ágil adaptada al contexto académico y a la naturaleza del proyecto. Se utilizará una variante de \textit{Scrum}, con iteraciones continuas, revisiones periódicas y entregas incrementales, lo que permite una mejora constante del producto y flexibilidad frente a cambios en los requisitos.
+
+\subsection*{Metodología de trabajo}
+
+El trabajo se dividirá en sprints de corta duración (longitud exacta a determinar), ajustables en función de la carga académica y el avance del proyecto. Cada sprint incluirá las siguientes etapas:
+
+\begin{itemize}
+    \item Planificación del sprint.
+    \item Desarrollo de funcionalidades.
+    \item Revisión del avance.
+    \item Documentación técnica y funcional.
+\end{itemize}
+
+Al final de cada iteración se realizará una reunión de seguimiento para evaluar avances, detectar obstáculos y ajustar estimaciones. También se mantendrán reuniones periódicas con los tutores y los interesados del proyecto para asegurar la alineación con los objetivos generales.
+
+Se buscará obtener un producto mínimo viable (MVP) en etapas tempranas, que cumpla con los requerimientos más críticos del sistema. A partir de allí, el desarrollo continuará de forma incremental hasta alcanzar la solución completa.
+
+\subsection*{Gestión de alcance, tiempo y calidad}
+
+El alcance del proyecto se define como la entrega de un sistema funcional que permita la recepción, procesamiento y envío de datos entre la estación terrena y el satélite, integrando una interfaz de usuario y funciones de control remoto. Se gestionará a través de una lista priorizada de funcionalidades, organizadas en entregables parciales.
+
+Los tiempos se estimarán al inicio de cada sprint y se ajustarán iterativamente en función del desempeño actual. Como indicadores de avance se utilizarán: número de funcionalidades completadas, cumplimiento de hitos, cobertura de pruebas, porcentaje de documentación técnica y cantidad de errores detectados y resueltos.
+
+La calidad del software se garantizará mediante revisiones de código entre pares, pruebas automatizadas, validaciones funcionales y documentación exhaustiva. Además, cada funcionalidad entregada deberá cumplir con criterios de aceptación previamente definidos.
+
+\subsection*{Gestión de riesgos}
+
+Se identificaron posibles riesgos técnicos y organizativos, mencionados en la sección anterior. Estos riesgos serán abordados mediante pruebas tempranas de viabilidad, prototipos rápidos y definición de soluciones alternativas. Se llevará un registro actualizado de los riesgos y su tratamiento.
+
+\subsection*{Gestión de cambios}
+
+Los cambios en los requisitos o en la planificación serán evaluados durante las reuniones de revisión de sprint. En caso de ser aceptados, se actualizará el backlog del proyecto y se ajustará la planificación futura.
+
+\subsection*{Documentación}
+
+El proyecto mantendrá una documentación completa y organizada, se tendrá:
+
+\begin{itemize}
+    \item Documentación funcional y de usuario: descripción de módulos, flujos, funcionalidades y uso general.
+    \item Documentación técnica del sistema: estructura de carpetas, API, arquitectura, protocolos, interfaz con \textit{SDR}, etc.
+    \item Minutas de reuniones internas y con tutores.
+    \item Manual de instalación, despliegue y operación del sistema.
+\end{itemize}
+
+Toda la documentación se almacenará en el repositorio compartido y versionado, junto con el código fuente.
+
+\subsection*{Hitos de avance}
+
+\begin{enumerate}
+    \item Análisis de requisitos y diseño general del sistema.
+    \item Primer prototipo con recepción de señales desde \textit{SDR}.
+    \item Implementación inicial del protocolo de comunicaciones.
+    \item Transmisión y control remoto básico.
+    \item Pruebas integradas con flujos de datos simulados.
+    \item Desarrollo de la interfaz de usuario.
+    \item Validación funcional y entrega final.
+\end{enumerate}
+
+El producto final incluirá el código fuente del sistema, su documentación técnica y funcional completa, scripts de instalación, manual de usuario y un conjunto de pruebas automatizadas y manuales para su verificación y validación.
