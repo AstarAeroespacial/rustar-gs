@@ -1,10 +1,6 @@
-use chrono::{DateTime, Utc};
 use std::{
     default,
-    fs::File,
-    io::{self, BufRead, Cursor, Read},
-    path::Path,
-    str::FromStr,
+    io::{Cursor, Read},
 };
 
 // TelemetryPacket (16 bytes)
@@ -32,6 +28,14 @@ impl default::Default for TelemetryPacket {
 }
 
 impl TelemetryPacket {
+    pub fn new(pkt_type: u8, length: u16, payload: TelemetryData) -> TelemetryPacket {
+        TelemetryPacket {
+            pkt_type,
+            length,
+            payload,
+        }
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(16);
         buf.push(self.pkt_type);
@@ -83,6 +87,15 @@ pub struct TelemetryData {
 }
 
 impl TelemetryData {
+    pub fn new(timestamp: u32, temp: f32, volt: f32, curr: f32, battery_soc: u8) -> TelemetryData {
+        TelemetryData {
+            timestamp,
+            temp,
+            volt,
+            curr,
+            battery_soc,
+        }
+    }
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(10);
         buf.extend_from_slice(&self.timestamp.to_be_bytes());
@@ -130,86 +143,4 @@ impl TelemetryData {
             battery_soc,
         }
     }
-}
-
-// Function to parse a line of telemetry data
-fn parse_line(line: &str) -> Option<TelemetryPacket> {
-    let mut time: Option<DateTime<Utc>> = None;
-    let mut temp: Option<f32> = None;
-    let mut volt: Option<f32> = None;
-    let mut curr: Option<f32> = None;
-    let mut battery_soc: Option<u8> = None;
-
-    for part in line.split(';') {
-        let kv: Vec<&str> = part.split('=').collect();
-        if kv.len() == 2 {
-            match kv[0] {
-                "TIME" => time = Some(DateTime::from_str(kv[1]).ok()?),
-                "TEMP" => temp = Some(kv[1].parse().ok()?),
-                "VOLT" => volt = Some(kv[1].parse().ok()?),
-                "CURR" => curr = Some(kv[1].parse().ok()?),
-                "BATTERY_SOC" => battery_soc = Some(kv[1].parse().ok()?),
-                _ => {}
-            }
-        }
-    }
-
-    if let (Some(time), Some(temp), Some(volt), Some(curr), Some(battery_soc)) =
-        (time, temp, volt, curr, battery_soc)
-    {
-        let timestamp = time.timestamp() as u32;
-        let frame = TelemetryData {
-            timestamp,
-            temp,
-            volt,
-            curr,
-            battery_soc,
-        };
-
-        let length = frame.to_bytes().len() as u16;
-        Some(TelemetryPacket {
-            pkt_type: 0x01,
-            length,
-            payload: frame,
-        })
-    } else {
-        None
-    }
-}
-
-fn main() {
-    let path = Path::new("telemetry.txt");
-    let mut telemetry_packet: TelemetryPacket = TelemetryPacket::default();
-
-    if let Ok(file) = File::open(path) {
-        let reader = io::BufReader::new(file);
-        for line in reader.lines() {
-            if let Ok(line_str) = line {
-                if let Some(packet) = parse_line(&line_str) {
-                    telemetry_packet = packet;
-                    println!("Parsed packet: {:?}\n", telemetry_packet);
-                } else {
-                    println!("Failed to parse line: {}", line_str);
-                }
-            }
-        }
-    };
-
-    // encoding telemetry packet to bytes
-    let encoded_packet = telemetry_packet.to_bytes();
-    println!("Encoded packet: {:?}\n", encoded_packet);
-
-    // decoding telemetry packet from bytes
-    let decoded_packet = TelemetryPacket::from_bytes(&encoded_packet);
-    println!("Decoded packet: {:?}\n", decoded_packet);
-
-    // Check if the decoded packet matches the original packet
-    assert_eq!(telemetry_packet.pkt_type, decoded_packet.pkt_type);
-    assert_eq!(telemetry_packet.length, decoded_packet.length);
-    assert_eq!(
-        telemetry_packet.payload.timestamp,
-        decoded_packet.payload.timestamp
-    );
-    assert_eq!(telemetry_packet.payload.temp, decoded_packet.payload.temp);
-    assert_eq!(telemetry_packet.payload.volt, decoded_packet.payload.volt);
 }
