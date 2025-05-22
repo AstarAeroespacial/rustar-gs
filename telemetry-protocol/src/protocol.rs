@@ -4,7 +4,7 @@ use std::{
 };
 
 // TelemetryPacket (16 bytes)
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TelemetryPacket {
     pub pkt_type: u8, // 0x01
     pub length: u16,  // length of payload
@@ -77,7 +77,7 @@ impl TelemetryPacket {
 }
 
 // TelemetryData (10 bytes)
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TelemetryData {
     pub timestamp: u32,  // seconds since UNIX epoch
     pub temp: f32,       // degrees Celsius
@@ -142,5 +142,35 @@ impl TelemetryData {
             curr,
             battery_soc,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_telemetry_data_to_bytes_and_from_bytes() {
+        let data = TelemetryData::new(123456, 25.5, 3.7, 1.2, 85);
+        let bytes = data.to_bytes();
+        let data2 = TelemetryData::from_bytes(&bytes);
+
+        assert_eq!(data.timestamp, data2.timestamp);
+        assert_eq!(data.temp, data2.temp);
+        assert_eq!(data.volt, data2.volt);
+        assert_eq!(data.curr, data2.curr);
+        assert_eq!(data.battery_soc, data2.battery_soc);
+    }
+
+    #[test]
+    fn test_telemetry_packet_to_bytes_and_from_bytes() {
+        let payload = TelemetryData::new(654321, 30.0, 4.2, 2.5, 90);
+        let packet = TelemetryPacket::new(1, 17, payload.clone());
+        let bytes = packet.to_bytes();
+        let packet2 = TelemetryPacket::from_bytes(&bytes);
+
+        assert_eq!(packet.pkt_type, packet2.pkt_type);
+        assert_eq!(packet.length, packet2.length);
+        assert_eq!(payload, packet2.payload);
     }
 }
