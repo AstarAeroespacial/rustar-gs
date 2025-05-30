@@ -1,0 +1,9 @@
+[package]
+name = "tracking"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4"
+satkit = "0.5.6"
+serialport = "4.7.2"
