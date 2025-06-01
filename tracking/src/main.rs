@@ -1,28 +1,28 @@
 use chrono::{Datelike, Timelike};
 use satkit::frametransform::qteme2itrf;
-use satkit::sgp4::{GravConst, OpsMode, sgp4, sgp4_full};
+use satkit::sgp4::{GravConst, OpsMode, sgp4_full};
 use satkit::types::Vector3;
 use satkit::{ITRFCoord, Instant, TLE};
 use serialport;
 use std::thread::sleep;
 
-/// Función para calcular el azimut y la elevación de un vector ENU (East, North, Up)
-fn enu_azimuth(enu: &Vector3) -> f64 {
-    let az = enu.y.atan2(enu.x).to_degrees();
-    (az + 360.0) % 360.0
+/// Calcular el azimut desde un vector NED
+fn ned_azimuth(ned: &Vector3) -> f64 {
+    let az_rad = ned.y.atan2(ned.x); // y = East, x = North
+    (az_rad.to_degrees() + 360.0) % 360.0
 }
 
-/// Función para calcular la elevación de un vector ENU (East, North, Up)
-fn enu_elevation(enu: &Vector3) -> f64 {
-    let horizontal_dist = (enu.x.powi(2) + enu.y.powi(2)).sqrt();
-    enu.z.atan2(horizontal_dist).to_degrees()
+/// Calcular la elevación desde un vector NED
+fn ned_elevation(ned: &Vector3) -> f64 {
+    let horizontal_dist = (ned.x.powi(2) + ned.y.powi(2)).sqrt();
+    ned.z.atan2(horizontal_dist).to_degrees()
 }
 
 /// Función para enviar azimut y elevación a la antena
-fn enviar_a_antena(azimut: f64, elevacion: f64) {
-    let comando = format!("AZ:{:.2},EL:{:.2}\n", azimut, elevacion);
+fn enviar_a_antena(num_satelite: &i32, azimut: f64, elevacion: f64) {
+    let comando = format!("AZ={:.1},EL={:.1}", azimut, elevacion);
 
-    println!("Enviando comando a la antena: {}", comando);
+    println!("{}", comando);
 
     // Enviar por serial usando crate serialport
 }
@@ -35,12 +35,12 @@ fn main() {
     // Other data files will be skipped if they are already present
     satkit::utils::update_datafiles(None, false); */
 
-    let line1 = "1 25544U 98067A   19343.69339541  .00001764  00000-0  38792-4 0  9991";
-    let line2 = "2 25544  51.6439 211.2001 0007417  17.6667  85.6398 15.50103472202482";
+    let line1 = "1 43641U 18076A   25152.17401761  .00000566  00000-0  77716-4 0  9991";
+    let line2 = "2 43641  97.8889 339.3866 0001435  91.1486 268.9891 14.82150509359666";
 
     let mut tle = TLE::load_2line(line1, line2).unwrap();
 
-    let update_interval = std::time::Duration::from_secs(5);
+    let update_interval = std::time::Duration::from_secs(20);
 
     loop {
         // 1. Obtener hora actual
@@ -57,7 +57,7 @@ fn main() {
         );
 
         // 3. Propagar posición y velocidad en TEME
-        let (pteme, vteme, errs) = sgp4_full(
+        let (pteme, vteme, _errs) = sgp4_full(
             &mut tle,
             &[current_epoch],
             GravConst::WGS84,
@@ -76,8 +76,8 @@ fn main() {
         let v_km_s: Vec<f64> = v_itrf.as_slice().iter().map(|x| x / 1000.0).collect();
 
         // Imprimir en formato cartesiano (ECEF)
-        println!("ITRS R (km): {:?}", r_km);
-        println!("ITRS V (km/s): {:?}", v_km_s);
+        /* println!("ITRS R (km): {:?}", r_km);
+        println!("ITRS V (km/s): {:?}", v_km_s); */
 
         // Coordenada del satélite como ITRFCoord
         let sat_coord = ITRFCoord::from_slice(r_itrf.as_slice()).unwrap();
@@ -85,15 +85,15 @@ fn main() {
         // // 5. Posición de la estación en ITRF en Buenos Aires
         let estacion = ITRFCoord::from_geodetic_deg(-34.6037, -58.3816, 25.0);
 
-        // 6. Vector ENU relativo a la estación
-        let enu = sat_coord.to_enu(&estacion);
+        // 6. Vector NED relativo a la estación
+        let ned = sat_coord.to_ned(&estacion);
 
         // 7. Calcular azimut y elevación
-        let azimuth = enu_azimuth(&enu);
-        let elevation = enu_elevation(&enu);
+        let azimuth = ned_azimuth(&ned);
+        let elevation = ned_elevation(&ned);
 
         // 8. Enviar azimut y elevación a la antena
-        enviar_a_antena(azimuth, elevation); // <- función tuya
+        enviar_a_antena(&tle.sat_num, azimuth, elevation);
 
         // Esperar al siguiente update
         sleep(update_interval);
