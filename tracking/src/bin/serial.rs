@@ -1,25 +1,51 @@
-use serialport::SerialPort;
-use std::io::Read;
+use std::io::{BufRead, BufReader, Write};
+use std::net::TcpListener;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let port_name = "COM4"; // este recibe lo que Orbitron manda a COM3
-    let baud_rate = 9600;
+fn main() -> std::io::Result<()> {
+    println!("Esperando conexión de Gpredict en puerto 4533...");
+    let listener = TcpListener::bind("127.0.0.1:4533")?;
 
-    let mut port = serialport::new(port_name, baud_rate)
-        .timeout(std::time::Duration::from_secs(30))
-        .open()?;
+    // Posición actual de la antena
+    let mut azimuth = 0.0;
+    let mut elevation = 0.0;
 
-    println!("Escuchando en {}...", port_name);
+    for stream in listener.incoming() {
+        let mut stream = stream?;
+        println!("Conexión establecida con Gpredict.");
+        let reader = BufReader::new(stream.try_clone()?);
 
-    let mut buffer: Vec<u8> = vec![0; 1024];
-    loop {
-        match port.read(&mut buffer) {
-            Ok(n) => {
-                let s = String::from_utf8_lossy(&buffer[..n]);
-                println!("Recibido: {}", s);
+        for line in reader.lines() {
+            match line {
+                // Responder según el comando
+                Ok(mut linea) => {
+                    if linea.starts_with("P ") {
+                        // Comando P azimuth elevation - mover antena
+                        linea = linea.replace(",", ".");
+                        let partes: Vec<&str> = linea.split_whitespace().collect();
+                        if partes.len() >= 3 {
+                            if let (Ok(az), Ok(el)) =
+                                (partes[1].parse::<f64>(), partes[2].parse::<f64>())
+                            {
+                                azimuth = az;
+                                elevation = el;
+                                println!("📡 Moviendo a: Az={:.1}°, El={:.1}°", azimuth, elevation);
+                                stream.write_all(b"RPRT 0\n")?;
+                            }
+                        }
+                    } else if linea == "p" {
+                        // Comando p - enviar posición actual
+                        /* println!(
+                            "📍 Enviando posición: Az={:.1}°, El={:.1}°",
+                            azimuth, elevation
+                        ); */
+                        let respuesta = format!("{:.6}\n{:.6}\n", azimuth, elevation);
+                        stream.write_all(respuesta.as_bytes())?;
+                    }
+                }
+                Err(err) => println!("Error al leer línea: {}", err),
             }
-            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => (),
-            Err(e) => return Err(Box::new(e)),
         }
     }
+
+    Ok(())
 }
