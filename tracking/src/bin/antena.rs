@@ -15,33 +15,44 @@ fn enu_azimuth(enu: &Vector3) -> f64 {
 /// Función para calcular la elevación de un vector ENU (East, North, Up)
 fn enu_elevation(enu: &Vector3) -> f64 {
     let horizontal_dist = (enu.x.powi(2) + enu.y.powi(2)).sqrt();
-    enu.z.atan2(horizontal_dist).to_degrees()
+    let elevation = enu.z.atan2(horizontal_dist).to_degrees();
+
+    elevation
 }
 
-/// Función para enviar azimut y elevación a la antena
 fn enviar_a_antena(num_satelite: &i32, azimut: f64, elevacion: f64) {
-    let comando = format!("AZ={:.1},EL={:.1}", azimut, elevacion);
+    // Imprimir los ángulos relativos a los que debe moverse la antena
+    println!("Az={:.1}°, El={:.1}°", azimut, elevacion);
 
-    println!("{}", comando);
-
-    // Enviar por serial usando crate serialport
+    // Aquí se enviaría el comando por el puerto serie o red, dependiendo de tu implementación
 }
 
 fn main() {
-    /* // Print the directoyr where data will be stored
+    // Print the directoyr where data will be stored
     println!("Data directory: {:?}", satkit::utils::datadir());
     // Update the data files (download those that are missing; refresh those that are out of date)
     // This will always download the most-recent space weather data and Earth Orientation Parameters
     // Other data files will be skipped if they are already present
-    satkit::utils::update_datafiles(None, false); */
+    satkit::utils::update_datafiles(None, true);
 
-    let line1 = "1 43641U 18076A   25152.17401761  .00000566  00000-0  77716-4 0  9991";
-    let line2 = "2 43641  97.8889 339.3866 0001435  91.1486 268.9891 14.82150509359666";
+    /*     ISS
+    let line1 = "1 25544U 98067A   25152.85500044  .00015665  00000-0  28262-3 0  9997";
+    let line2 = "2 25544  51.6369  23.0509 0001835 179.7810 180.3180 15.49928440512781"; */
+
+    /*     SAOCOM
+    let line1 = "1 43641U 18076A   25153.18667784  .00000524  00000-0  72414-4 0  9996";
+    let line2 = "2 43641  97.8889 340.3845 0001448  91.2759 268.8620 14.82151789359810"; */
+
+    let line1 = "1 43641U 18076A   25153.18667784  .00000524  00000-0  72414-4 0  9996";
+    let line2 = "2 43641  97.8889 340.3845 0001448  91.2759 268.8620 14.82151789359810";
 
     let mut tle = TLE::load_2line(line1, line2).unwrap();
 
     let update_interval = std::time::Duration::from_secs(5);
-    let mut time = Utc.with_ymd_and_hms(2025, 5, 31, 21, 00, 00).unwrap();
+    // let mut time = Utc.with_ymd_and_hms(2025, 5, 31, 21, 00, 00).unwrap();
+
+    // Posición de la estación en ITRF en Buenos Aires
+    let estacion = ITRFCoord::from_geodetic_deg(-34.5829, -58.4829, 25.0);
 
     loop {
         // 1. Obtener hora actual
@@ -49,19 +60,19 @@ fn main() {
 
         // 2. Convertir a formato de fecha y hora
         let current_epoch = Instant::from_datetime(
-            time.year().try_into().unwrap(),
-            time.month().try_into().unwrap(),
-            time.day().try_into().unwrap(),
-            time.hour().try_into().unwrap(),
-            time.minute().try_into().unwrap(),
-            time.second().try_into().unwrap(),
+            now.year().try_into().unwrap(),
+            now.month().try_into().unwrap(),
+            now.day().try_into().unwrap(),
+            now.hour().try_into().unwrap(),
+            now.minute().try_into().unwrap(),
+            now.second().try_into().unwrap(),
         );
 
         // 3. Propagar posición y velocidad en TEME
         let (pteme, vteme, _errs) = sgp4_full(
             &mut tle,
             &[current_epoch],
-            GravConst::WGS72,
+            GravConst::WGS84,
             OpsMode::IMPROVED,
         );
 
@@ -72,33 +83,35 @@ fn main() {
         // Estan en m y m/s
         let r_itrf = rot * pteme;
         let v_itrf = rot * vteme;
-        /*
-        let r_km: Vec<f64> = r_itrf.as_slice().iter().map(|x| x / 1000.0).collect();
+
+        /*   let r_km: Vec<f64> = r_itrf.as_slice().iter().map(|x| x / 1000.0).collect();
         let v_km_s: Vec<f64> = v_itrf.as_slice().iter().map(|x| x / 1000.0).collect(); */
 
         // Imprimir en formato cartesiano (ECEF)
-        /* println!("ITRS R (km): {:?}", r_km);
+        /*  println!("ITRS R (km): {:?}", r_km);
         println!("ITRS V (km/s): {:?}", v_km_s); */
 
         // Coordenada del satélite como ITRFCoord
         let sat_coord = ITRFCoord::from_slice(r_itrf.as_slice()).unwrap();
 
-        println!("{}", sat_coord);
+        // println!("{}", sat_coord);
 
-        // // 5. Posición de la estación en ITRF en Buenos Aires
-        let estacion = ITRFCoord::from_geodetic_deg(-34.6037, -58.3816, 0.0);
-
-        // 6. Vector ENU relativo a la estación
+        // 5. Vector ENU relativo a la estación
         let enu = sat_coord.to_enu(&estacion);
 
-        // 7. Calcular azimut y elevación
+        // 6. Calcular azimut y elevación
         let azimuth = enu_azimuth(&enu);
         let elevation = enu_elevation(&enu);
+
+        // Verificar si el satélite está fuera de la visual
+        if elevation <= 0.0 {
+            println!("📡 El satélite ya no es visible. ");
+        }
 
         // 8. Enviar azimut y elevación a la antena
         enviar_a_antena(&tle.sat_num, azimuth, elevation);
 
-        time = time + chrono::Duration::seconds(5);
+        // time = time + chrono::Duration::seconds(5);
         // Esperar al siguiente update
         sleep(update_interval);
     }
