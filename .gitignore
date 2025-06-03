@@ -9,3 +9,7 @@
 *.toc
 *.out
 *.pdf
+
+
+# Added by cargo
+/target
