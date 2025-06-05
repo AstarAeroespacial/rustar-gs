@@ -3,7 +3,7 @@ use std::{
     io::{Cursor, Read},
 };
 
-// TelemetryPacket (16 bytes)
+// TelemetryPacket (20 bytes)
 #[derive(Debug, PartialEq)]
 pub struct TelemetryPacket {
     pub pkt_type: u8, // 0x01
@@ -37,7 +37,7 @@ impl TelemetryPacket {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(16);
+        let mut buf = Vec::with_capacity(20);
         buf.push(self.pkt_type);
 
         // Payload length as u16
@@ -76,7 +76,7 @@ impl TelemetryPacket {
     }
 }
 
-// TelemetryData (10 bytes)
+// TelemetryData (17 bytes)
 #[derive(Debug, PartialEq, Clone)]
 pub struct TelemetryData {
     pub timestamp: u32,  // seconds since UNIX epoch
@@ -97,7 +97,7 @@ impl TelemetryData {
         }
     }
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(10);
+        let mut buf = Vec::with_capacity(17);
         buf.extend_from_slice(&self.timestamp.to_be_bytes());
         buf.extend_from_slice(&self.temp.to_be_bytes());
         buf.extend_from_slice(&self.volt.to_be_bytes());
