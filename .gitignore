@@ -9,4 +9,7 @@
 *.toc
 *.out
 *.pdf
-target
+
+# Added by cargo
+/target
+**/Cargo.lock
