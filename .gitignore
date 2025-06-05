@@ -10,6 +10,6 @@
 *.out
 *.pdf
 
-
 # Added by cargo
 /target
+**/Cargo.lock
