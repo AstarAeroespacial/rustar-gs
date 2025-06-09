@@ -1,5 +1,6 @@
 use std::{
     io::{Read, Seek, Write},
+    sync::mpsc,
     thread::{self, sleep},
     time::Duration,
 };
@@ -10,7 +11,7 @@ use std::{
 
 // async?? custom traits "SampleSource" and "BitSink"
 // abstract for any reader or writer?
-pub struct Demodulator<R: Read + Seek, W: Write> {
+pub struct Demodulator<R: Read + Seek + Send + 'static, W: Write + Send + 'static> {
     // struct Demodulator {
     // pub reader: Arc<mpsc::Receiver<Bytes>>,
     pub reader: R,
@@ -23,12 +24,12 @@ pub struct Demodulator<R: Read + Seek, W: Write> {
 type Sample = [f32; 2];
 type Bit = bool;
 
-const TELEMETRY_PUB_ADDR: &str = "tcp://127.0.0.1:5556";
-const TELEMETRY_SUB_ADDR: &str = "tcp://127.0.0.1:5555";
+const SAMPLE_SINK: &str = "tcp://127.0.0.1:5556";
+const BIT_SOURCE: &str = "tcp://127.0.0.1:5557";
 
 const BATCH_SIZE: usize = 128; // Number of samples per batch
 
-impl<R: Read + Seek, W: Write> Demodulator<R, W> {
+impl<R: Read + Seek + Send + 'static, W: Write + Send + 'static> Demodulator<R, W> {
     pub fn build(reader: R, writer: W) -> Self {
         //     let subscriber = context.socket(zmq::SUB).unwrap();
         //     subscriber.connect(TELEMETRY_SUB_ADDR).unwrap();
@@ -42,29 +43,44 @@ impl<R: Read + Seek, W: Write> Demodulator<R, W> {
         }
     }
 
-    pub fn run(&mut self) {
-        // send samples to gnu radio
-        let context = zmq::Context::new();
-        let publisher = context.socket(zmq::PUB).unwrap();
-        publisher.bind(TELEMETRY_PUB_ADDR).unwrap();
+    pub fn run(mut self) {
+        let sender = thread::spawn(move || {
+            let context = zmq::Context::new();
+            let publisher = context.socket(zmq::PUB).unwrap();
+            publisher.bind(SAMPLE_SINK).unwrap();
 
-        let mut buffer = [0u8; 8 * BATCH_SIZE]; // samples batch
+            let mut buffer = [0u8; 8 * BATCH_SIZE]; // samples batch
 
-        loop {
-            let n = self.reader.read(&mut buffer).unwrap();
+            loop {
+                let n = self.reader.read(&mut buffer).unwrap();
 
-            if n == 0 {
-                self.reader.rewind().unwrap();
+                if n == 0 {
+                    self.reader.rewind().unwrap();
+                }
+
+                //dbg!(n);
+                assert!(n % 8 == 0); // must receive discrete number of samples
+
+                publisher.send(&buffer[0..n], 0).unwrap();
             }
+        });
 
-            dbg!(n);
-            assert!(n % 8 == 0); // must receive discrete number of samples
+        let receiver = thread::spawn(move || {
+            let context = zmq::Context::new();
+            let subscriber = context.socket(zmq::SUB).unwrap();
+            subscriber.connect(BIT_SOURCE).unwrap();
+            subscriber.set_subscribe(b"").unwrap();
 
-            publisher.send(&buffer[0..n], 0).unwrap();
-        }
+            loop {
+                let msg = subscriber.recv_bytes(0).unwrap();
+                dbg!(&msg);
 
-        // let receiver = thread::spawn(|| {});
-        // receiver.join().unwrap();
+                self.writer.write(&msg).unwrap();
+            }
+        });
+
+        sender.join().unwrap();
+        receiver.join().unwrap();
     }
 }
 

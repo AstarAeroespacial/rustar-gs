@@ -1,7 +1,4 @@
-use std::{
-    fs::File,
-    io::{self, Stdout},
-};
+use std::{fs::File, io};
 
 use modem::Demodulator;
 
@@ -11,6 +8,6 @@ fn main() {
     let reader = File::open("./out.txt").unwrap();
     let writer = io::stdout();
 
-    let mut demod = Demodulator::build(reader, writer);
+    let demod = Demodulator::build(reader, writer);
     demod.run();
 }
