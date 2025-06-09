@@ -1,0 +1,16 @@
+use std::{
+    fs::File,
+    io::{self, Stdout},
+};
+
+use modem::Demodulator;
+
+extern crate modem;
+
+fn main() {
+    let reader = File::open("./out.txt").unwrap();
+    let writer = io::stdout();
+
+    let mut demod = Demodulator::build(reader, writer);
+    demod.run();
+}
