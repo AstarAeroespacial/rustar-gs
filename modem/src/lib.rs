@@ -1,24 +1,15 @@
 use std::{
-    io::{Read, Seek, Write},
-    sync::mpsc,
-    thread::{self, sleep},
-    time::Duration,
+    io::{Read, Write},
+    thread,
 };
-
-// use zmq::Socket;
 
 // bytemuck for zero copy conversions, may me more performant
 
 // async?? custom traits "SampleSource" and "BitSink"
 // abstract for any reader or writer?
-pub struct Demodulator<R: Read + Seek + Send + 'static, W: Write + Send + 'static> {
-    // struct Demodulator {
-    // pub reader: Arc<mpsc::Receiver<Bytes>>,
+pub struct Demodulator<R: Read + Send + 'static, W: Write + Send + 'static> {
     pub reader: R,
     pub writer: W,
-    // pub writer: Arc<mpsc::Sender<Bit>>,
-    // sink: Socket,
-    // source: Socket,
 }
 
 type Sample = [f32; 2];
@@ -29,12 +20,8 @@ const BIT_SOURCE: &str = "tcp://127.0.0.1:5557";
 
 const BATCH_SIZE: usize = 128; // Number of samples per batch
 
-impl<R: Read + Seek + Send + 'static, W: Write + Send + 'static> Demodulator<R, W> {
+impl<R: Read + Send + 'static, W: Write + Send + 'static> Demodulator<R, W> {
     pub fn build(reader: R, writer: W) -> Self {
-        //     let subscriber = context.socket(zmq::SUB).unwrap();
-        //     subscriber.connect(TELEMETRY_SUB_ADDR).unwrap();
-        //     subscriber.set_subscribe(b"").unwrap();
-
         Self {
             // sink: publisher,
             // source: subscriber,
@@ -54,14 +41,12 @@ impl<R: Read + Seek + Send + 'static, W: Write + Send + 'static> Demodulator<R, 
             loop {
                 let n = self.reader.read(&mut buffer).unwrap();
 
-                if n == 0 {
-                    self.reader.rewind().unwrap();
-                }
-
-                //dbg!(n);
                 assert!(n % 8 == 0); // must receive discrete number of samples
 
-                publisher.send(&buffer[0..n], 0).unwrap();
+                if n > 0 {
+                    // dbg!(&n);
+                    publisher.send(&buffer[0..n], 0).unwrap();
+                }
             }
         });
 
@@ -74,8 +59,6 @@ impl<R: Read + Seek + Send + 'static, W: Write + Send + 'static> Demodulator<R, 
             loop {
                 let msg = subscriber.recv_bytes(0).unwrap();
                 dbg!(&msg);
-
-                self.writer.write(&msg).unwrap();
             }
         });
 
@@ -83,13 +66,6 @@ impl<R: Read + Seek + Send + 'static, W: Write + Send + 'static> Demodulator<R, 
         receiver.join().unwrap();
     }
 }
-
-// loop {
-//     self.reader.read_exact(&mut buffer).unwrap();
-//     self.sink.send(&buffer, 0).unwrap();
-// }
-
-// unimplemented!()
 
 #[cfg(test)]
 mod tests {
