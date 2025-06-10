@@ -1,4 +1,4 @@
-use std::{fs::File, io};
+use std::fs::File;
 
 use modem::Demodulator;
 
