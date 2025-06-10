@@ -44,7 +44,6 @@ impl<R: Read + Send + 'static, W: Write + Send + 'static> Demodulator<R, W> {
                 assert!(n % 8 == 0); // must receive discrete number of samples
 
                 if n > 0 {
-                    // dbg!(&n);
                     publisher.send(&buffer[0..n], 0).unwrap();
                 }
             }
@@ -58,7 +57,11 @@ impl<R: Read + Send + 'static, W: Write + Send + 'static> Demodulator<R, W> {
 
             loop {
                 let msg = subscriber.recv_bytes(0).unwrap();
-                dbg!(&msg);
+
+                for byte in msg {
+                    let bit_char = if byte == 0 { b'0' } else { b'1' };
+                    self.writer.write_all(&[bit_char]).unwrap();
+                }
             }
         });
 
