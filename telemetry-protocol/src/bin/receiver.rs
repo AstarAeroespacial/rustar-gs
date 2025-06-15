@@ -1,3 +1,4 @@
+use hdlc::{SpecialChars, decode};
 use telemetry_protocol::protocol::TelemetryPacket;
 use zmq;
 
@@ -11,8 +12,9 @@ fn main() {
 
     loop {
         println!("Waiting for telemetry data...");
-        let msg = subscriber.recv_bytes(0).unwrap();
-        let packet = TelemetryPacket::from_bytes(&msg);
-        println!("Received packet: {:?}", packet);
+        let frame = subscriber.recv_bytes(0).unwrap();
+        let packet_bytes = decode(&frame, SpecialChars::default()).unwrap();
+        let packet = TelemetryPacket::from_bytes(&packet_bytes);
+        println!("Received (framed) packet: {:?}", packet);
     }
 }

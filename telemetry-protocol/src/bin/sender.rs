@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use hdlc::{SpecialChars, encode};
 use std::{
     fs::File,
     io::{self, BufRead},
@@ -9,7 +10,7 @@ use std::{
 use telemetry_protocol::protocol::{TelemetryData, TelemetryPacket};
 use zmq;
 
-const TELEMETRY_FILE: &str = "telemetry.txt";
+const TELEMETRY_FILE: &str = "telemetry-protocol/telemetry.txt";
 const TELEMETRY_PUB_ADDR: &str = "tcp://127.0.0.1:5555";
 
 // Function to parse a line of telemetry data
@@ -61,9 +62,9 @@ fn main() {
     loop {
         for line_str in &lines {
             if let Some(packet) = parse_line(line_str) {
-                let encoded_packet = packet.to_bytes();
-                publisher.send(encoded_packet, 0).unwrap();
-                println!("Sent packet: {:?}", packet);
+                let frame = encode(&packet.to_bytes(), SpecialChars::default()).unwrap();
+                publisher.send(frame, 0).unwrap();
+                println!("Sent (framed) packet: {:?}", packet);
             } else {
                 println!("Failed to parse line: {}", line_str);
             }
