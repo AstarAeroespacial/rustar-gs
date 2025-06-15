@@ -2,3 +2,4 @@
 members = [
     "telemetry-protocol",
 ]
+resolver = "3"
