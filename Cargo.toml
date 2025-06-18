@@ -1,2 +1,4 @@
 [workspace]
-members = []
+members = ["framing"]
+
+resolver = "3"

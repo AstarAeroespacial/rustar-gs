@@ -1,0 +1,7 @@
+[package]
+name = "framing"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hdlc = "0.4"
