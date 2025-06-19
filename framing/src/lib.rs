@@ -72,9 +72,37 @@ mod tests {
         let mut frame = encode(&[0x99, 0x88], SpecialChars::default()).unwrap();
         frame.pop(); // Remove the closing flag
         let mut output = Vec::new();
-        
+
         build_frames(Cursor::new(frame), &mut output).unwrap();
         // No complete frame, so output should be empty
         assert_eq!(output, Vec::<u8>::new());
+    }
+
+    #[test]
+    fn build_two_frames_first_complete_second_incomplete() {
+        let frame1 = encode(&[0x11, 0x22], SpecialChars::default()).unwrap();
+        let mut frame2 = encode(&[0x33, 0x44], SpecialChars::default()).unwrap();
+        frame2.pop(); // Remove closing flag from second frame (incomplete)
+        let mut input = frame1.clone();
+        input.extend_from_slice(&frame2);
+        let mut output = Vec::new();
+
+        build_frames(Cursor::new(input), &mut output).unwrap();
+        // Only the first (complete) frame should be output
+        assert_eq!(output, frame1);
+    }
+
+    #[test]
+    fn build_two_frames_first_incomplete_second_complete() {
+        let mut frame1 = encode(&[0x55, 0x66], SpecialChars::default()).unwrap();
+        frame1.pop(); // Remove closing flag from first frame (incomplete)
+        let frame2 = encode(&[0x77, 0x88], SpecialChars::default()).unwrap();
+        let mut input = frame1;
+        input.extend_from_slice(&frame2);
+        let mut output = Vec::new();
+
+        build_frames(Cursor::new(input.clone()), &mut output).unwrap();
+        // frame1 takes the start flag of frame2 as its end flag
+        assert_eq!(output, &[0x7E, 0x55, 0x66, 0x7E]);
     }
 }
