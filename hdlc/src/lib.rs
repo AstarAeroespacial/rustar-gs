@@ -1,6 +1,8 @@
 // mod my_ring_buffer;
+mod bitvecdeque;
 mod deframer;
-use std::{collections::VecDeque, sync::mpsc};
+use bitvecdeque::BitVecDeque;
+use std::sync::mpsc;
 
 // Esta es una implementación bastante naive:
 // 1. Los bool ocupan u8. Deberían recibirse u8, a interpretar com bits packeados.
@@ -15,7 +17,7 @@ enum ParserState {
 }
 
 pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
-    let mut buffer = VecDeque::<bool>::new();
+    let mut buffer = BitVecDeque::new();
 
     let mut cursor_idx = 0;
 
@@ -30,8 +32,11 @@ pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
             break;
         }
 
-        buffer.extend(new_bits);
-        dbg!(&buffer);
+        // Extender el buffer con los nuevos bits
+        for bit in new_bits {
+            buffer.push_back(bit);
+        }
+        dbg!(&buffer.to_vec());
 
         // Busco un sync.
 
@@ -41,14 +46,13 @@ pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
                 break;
             }
 
-            let slice = buffer
-                .range(cursor_idx..(cursor_idx + 8))
-                .copied()
-                .collect::<Vec<_>>(); // try to avoid this copy
+            // Obtener slice de 8 bits usando el método slice_to_bitvec y convertir a Vec<bool>
+            let bitvec_slice = buffer.slice_to_bitvec(cursor_idx, cursor_idx + 8);
+            let slice: Vec<bool> = bitvec_slice.iter().map(|bit| *bit).collect();
 
             dbg!(&slice);
 
-            if slice == [false, true, true, true, true, true, true, false] {
+            if slice == vec![false, true, true, true, true, true, true, false] {
                 dbg!("match!");
                 // found sync
                 match state {
@@ -57,8 +61,8 @@ pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
                         cursor_idx += 1;
                     }
                     ParserState::SearchingSyncEnd => {
-                        let frame_bits = buffer.drain(..(cursor_idx + 8)).collect::<Vec<_>>();
-                        dbg!(frame_bits);
+                        let frame_bits = buffer.drain_range(0, cursor_idx + 8);
+                        dbg!(&frame_bits);
                         cursor_idx = 0;
                     }
                 }

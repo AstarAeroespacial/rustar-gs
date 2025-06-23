@@ -1,12 +1,5 @@
-use std::{collections::VecDeque, sync::mpsc};
-
-struct BitVecDeque {}
-
-impl BitVecDeque {
-    /// Drains the iterator of the elements matching the predicate.
-    /// Returns an iterator over the drained elements.
-    fn drain_while() {}
-}
+use crate::bitvecdeque::BitVecDeque;
+use std::sync::mpsc;
 
 enum ParserState {
     SearchingSyncStart,
@@ -15,7 +8,7 @@ enum ParserState {
 
 struct Deframer {
     reader: mpsc::Receiver<Vec<bool>>,
-    buffer: VecDeque<bool>,
+    buffer: BitVecDeque,
     idx: usize, // it's an index, or offset, from the 0th element of the buffer
     state: ParserState,
 }
@@ -27,7 +20,7 @@ impl Deframer {
     pub fn new(rx: mpsc::Receiver<Vec<bool>>) -> Self {
         Self {
             reader: rx,
-            buffer: VecDeque::new(),
+            buffer: BitVecDeque::new(),
             idx: 0,
             state: ParserState::SearchingSyncStart,
         }
@@ -35,7 +28,10 @@ impl Deframer {
 
     fn run(&mut self) {
         while let Ok(new_bits) = self.reader.recv() {
-            self.buffer.extend(new_bits);
+            // Extender el buffer con los nuevos bits
+            for bit in new_bits {
+                self.buffer.push_back(bit);
+            }
 
             let raw_delimited_frames = self.try_find_delimited();
         }
@@ -46,14 +42,12 @@ impl Deframer {
 
         // TODO: add a MAX, because if i never find an ending sync the while never ends, and drop the buffer contents
         while self.buffer.len() - self.idx >= 8 {
-            let slice = self
-                .buffer
-                .range(self.idx..(self.idx + 8))
-                .copied()
-                .collect::<Vec<_>>(); // try to avoid this copy
+            // Usar slice_to_bitvec para obtener 8 bits y convertir a Vec<bool>
+            let bitvec_slice = self.buffer.slice_to_bitvec(self.idx, self.idx + 8);
+            let slice: Vec<bool> = bitvec_slice.iter().map(|bit| *bit).collect();
 
             // if i found sync 01111110
-            if slice == [false, true, true, true, true, true, true, false] {
+            if slice == vec![false, true, true, true, true, true, true, false] {
                 match self.state {
                     // if i was looking for the beginning of a frame
                     ParserState::SearchingSyncStart => {
@@ -65,7 +59,7 @@ impl Deframer {
                     // if i was looking for the end of the frame
                     ParserState::SearchingSyncEnd => {
                         // i drain the whole frame, between syncs
-                        let frame_bits = self.buffer.drain(..(self.idx + 8)).collect::<Vec<_>>();
+                        let frame_bits = self.buffer.drain_range(0, self.idx + 8);
                         frames.push(RawDelimitedBits(frame_bits));
                         // and reset the index to 0 and the parser state, so i can begin again
                         self.idx = 0;
@@ -108,14 +102,14 @@ mod tests {
 
         let mut deframer = Deframer::new(rx);
 
-        deframer.buffer = vec![
+        // Usar from_bits para crear el BitVecDeque
+        deframer.buffer = BitVecDeque::from_bits(vec![
             false, true, true, false, // garbage
             false, true, true, true, true, true, true, false, // sync
             true, true, true, false, // content
             false, true, true, true, true, true, true, false, // sync
             false, true, true, false, // garbage
-        ]
-        .into();
+        ]);
 
         let frames = deframer.try_find_delimited();
 
@@ -135,13 +129,12 @@ mod tests {
 
         let mut deframer = Deframer::new(rx);
 
-        deframer.buffer = vec![
+        deframer.buffer = BitVecDeque::from_bits(vec![
             false, true, true, false, // garbage
             false, true, true, true, true, true, true, false, // sync
             false, true, true, true, true, true, true, false, // sync
             false, true, true, false, // garbage
-        ]
-        .into();
+        ]);
 
         let frames = deframer.try_find_delimited();
 
@@ -160,7 +153,7 @@ mod tests {
 
         let mut deframer = Deframer::new(rx);
 
-        deframer.buffer = vec![
+        deframer.buffer = BitVecDeque::from_bits(vec![
             false, true, true, false, // garbage
             false, true, true, true, true, true, true, false, // sync
             true, true, true, false, // content
@@ -170,8 +163,7 @@ mod tests {
             true, true, true, false, // content
             false, true, true, true, true, true, true, false, // sync
             false, true, true, false, // garbage
-        ]
-        .into();
+        ]);
 
         let frames = deframer.try_find_delimited();
 
