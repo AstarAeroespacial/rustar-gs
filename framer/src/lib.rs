@@ -1,3 +1,5 @@
+use crc_any::CRCu16;
+
 type Bit = bool;
 type Byte = u8;
 
@@ -99,6 +101,30 @@ impl FrameCheckingSequence {
 }
 
 impl Frame {
+    pub fn new(address: Byte, control: Control, info: Option<Vec<Byte>>) -> Self {
+        // 1. Preparar bytes para el CRC
+        let mut data = Vec::new();
+        data.push(address);
+        data.push(control.clone().into());
+
+        if let Some(ref payload) = info {
+            data.extend(payload);
+        }
+
+        // 2. Calcular el FCS (CRC-16-CCITT-FALSE)
+        let mut crc = CRCu16::crc16ccitt_false();
+        crc.digest(&data);
+        let fcs = FrameCheckingSequence(crc.get_crc());
+
+        // 3. Crear el frame
+        Frame {
+            address,
+            control,
+            info,
+            fcs,
+        }
+    }
+
     /// Helper to convert a Byte to a Vec<Bit>, Least Significant Bit first
     fn byte_to_bits(byte: Byte) -> Vec<Bit> {
         (0..8).map(|i| (byte & (1 << i)) != 0).collect()
@@ -155,6 +181,13 @@ impl Frame {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fcs_on_known_data() {
+        let mut crc = CRCu16::crc16ccitt_false();
+        crc.digest(b"123456789");
+        assert_eq!(crc.get_crc(), 0x29B1); // validación estándar
+    }
 
     #[test]
     fn stuffing_no_ones() {
