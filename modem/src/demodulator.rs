@@ -1,5 +1,8 @@
 use std::{
+    env,
     io::{Read, Write},
+    path::PathBuf,
+    process::{Child, Command},
     thread,
 };
 
@@ -8,25 +11,52 @@ use std::{
 // async?? custom traits "SampleSource" and "BitSink"
 // abstract for any reader or writer?
 pub struct Demodulator<R: Read + Send + 'static, W: Write + Send + 'static> {
+    // from where the samples are read
     pub reader: R,
+    // to where we write the bits
     pub writer: W,
+    #[allow(dead_code)]
+    python_proc: Child, // keep it alive
 }
 
 type Sample = [f32; 2];
 type Bit = bool;
 
+// to where i send the samples for demodulation
 const SAMPLE_SINK: &str = "tcp://127.0.0.1:5556";
+// from where i read the demodulated bits
 const BIT_SOURCE: &str = "tcp://127.0.0.1:5557";
 
-const BATCH_SIZE: usize = 128; // Number of samples per batch
+// I LOWERED IT BECAUSE WITH SMALL FILES SOMETIMES NOTHING IS
+// SENT / RECEIVED, I HAVE TO INVESTIGATE IT FURTHER
+// TODO: add telemetry/counters
+// TODO: higher batch size
+const BATCH_SIZE: usize = 2; // Number of samples per batch
+
+// TODO: implement Drop and kill child.
 
 impl<R: Read + Send + 'static, W: Write + Send + 'static> Demodulator<R, W> {
+    // TODO: can fail!!
     pub fn build(reader: R, writer: W) -> Self {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+
+        let manifest_path = PathBuf::from(manifest_dir);
+        let project_root = manifest_path.parent().unwrap();
+
+        let python_path = project_root.join("modem/gnuradio/python");
+        let script_path = project_root.join("modem/flowgraphs/afsk_demod_headless.py");
+
+        let child = Command::new(&python_path)
+            .arg(&script_path)
+            .spawn()
+            .expect("Failed to run GNU radio flowgraph");
+
         Self {
             // sink: publisher,
             // source: subscriber,
             reader: reader,
             writer: writer,
+            python_proc: child,
         }
     }
 
@@ -62,6 +92,8 @@ impl<R: Read + Send + 'static, W: Write + Send + 'static> Demodulator<R, W> {
                     let bit_char = if byte == 0 { b'0' } else { b'1' };
                     self.writer.write_all(&[bit_char]).unwrap();
                 }
+
+                self.writer.flush().unwrap(); // TODO: really necessary?
             }
         });
 

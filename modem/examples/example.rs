@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::{fs::File, thread::sleep, time::Duration};
 
 use modem::Demodulator;
 
@@ -9,5 +9,8 @@ fn main() {
     let writer = File::create("./demodulated_bits.txt").unwrap();
 
     let demod = Demodulator::build(reader, writer);
+
+    sleep(Duration::from_millis(500)); // magic sleep. TODO: small handshake to ensure the flowgraph is ready.
+
     demod.run();
 }
