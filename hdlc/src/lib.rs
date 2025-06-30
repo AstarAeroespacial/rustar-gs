@@ -1,26 +1,21 @@
 // mod my_ring_buffer;
 mod bitvecdeque;
 mod deframer;
+
 use bitvecdeque::BitVecDeque;
+use deframer::ParserState;
 use std::sync::mpsc;
 
-// Esta es una implementación bastante naive:
-// 1. Los bool ocupan u8. Deberían recibirse u8, a interpretar com bits packeados.
+// Esta es una implementación bastante naive, TODO:
+// 1. Los bool ocupan u8. Deberían recibirse u8s a interpretar como bits packeados.
 // 2. Buscar cómo evitar copies.
 // 3. Tendría que ser un struct.
 // 4. Async.
 // 5. Pushback o algo, sino el ringbuffer podría crecer indiscriminadamente.
 
-enum ParserState {
-    SearchingSyncStart,
-    SearchingSyncEnd,
-}
-
 pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
     let mut buffer = BitVecDeque::new();
-
     let mut cursor_idx = 0;
-
     let mut state = ParserState::SearchingSyncStart;
 
     loop {

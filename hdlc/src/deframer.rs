@@ -1,7 +1,7 @@
 use crate::bitvecdeque::BitVecDeque;
 use std::sync::mpsc;
 
-enum ParserState {
+pub(crate) enum ParserState {
     SearchingSyncStart,
     SearchingSyncEnd,
 }
