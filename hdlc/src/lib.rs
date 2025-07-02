@@ -1,4 +1,3 @@
-// mod my_ring_buffer;
 mod bitvecdeque;
 mod deframer;
 
@@ -13,13 +12,15 @@ use std::sync::mpsc;
 // 4. Async.
 // 5. Pushback o algo, sino el ringbuffer podría crecer indiscriminadamente.
 
+const FLAG_ARRAY: [bool; 8] = [false, true, true, true, true, true, true, false];
+
 pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
     let mut buffer = BitVecDeque::new();
     let mut cursor_idx = 0;
-    let mut state = ParserState::SearchingSyncStart;
+    let mut state = ParserState::SearchingStartSync;
 
     loop {
-        // Agrego los nuevos bits que llegaron por el pipe.
+        // Agrego los nuevos bits que llegaron por el pipe
         let new_bits = rx.recv().unwrap();
         dbg!(&new_bits);
 
@@ -33,8 +34,7 @@ pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
         }
         dbg!(&buffer.to_vec());
 
-        // Busco un sync.
-
+        // Busco un sync
         loop {
             if buffer.len() < cursor_idx + 8 {
                 dbg!(buffer.len());
@@ -47,15 +47,15 @@ pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
 
             dbg!(&slice);
 
-            if slice == vec![false, true, true, true, true, true, true, false] {
-                dbg!("match!");
+            if slice == FLAG_ARRAY {
+                dbg!("found sync");
                 // found sync
                 match state {
-                    ParserState::SearchingSyncStart => {
-                        state = ParserState::SearchingSyncEnd;
-                        cursor_idx += 1;
+                    ParserState::SearchingStartSync => {
+                        state = ParserState::SearchingEndSync;
+                        cursor_idx += 8;
                     }
-                    ParserState::SearchingSyncEnd => {
+                    ParserState::SearchingEndSync => {
                         let frame_bits = buffer.drain_range(0, cursor_idx + 8);
                         dbg!(&frame_bits);
                         cursor_idx = 0;
@@ -63,10 +63,10 @@ pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
                 }
             } else {
                 match state {
-                    ParserState::SearchingSyncStart => {
+                    ParserState::SearchingStartSync => {
                         buffer.pop_front();
                     }
-                    ParserState::SearchingSyncEnd => {
+                    ParserState::SearchingEndSync => {
                         cursor_idx += 1;
                     }
                 }
@@ -78,26 +78,43 @@ pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
 #[cfg(test)]
 mod tests {
 
+    use super::*;
     use std::thread;
 
-    use super::*;
-
     #[test]
-    fn it_works() {
-        dbg!("hola");
+    fn basic_frame_with_no_garbage() {
         let (tx, rx) = mpsc::channel::<Vec<bool>>();
 
         let handle = thread::spawn(move || {
-            dbg!("hola");
             deframe(rx);
         });
 
-        tx.send(vec![false, true, true, false]).unwrap();
-        tx.send(vec![false, true, true, true]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![true, true, true, false]).unwrap(); // content
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn basic_frame_with_previous_garbage() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            deframe(rx);
+        });
+
+        tx.send(vec![false, true, true, false]).unwrap(); // garbage
+
+        tx.send(vec![false, true, true, true]).unwrap(); // sync
         tx.send(vec![true, true, true, false]).unwrap();
-        tx.send(vec![true, true, true, false]).unwrap(); // contenido
-        tx.send(vec![false, true, true, true]).unwrap();
+
+        tx.send(vec![true, true, true, false]).unwrap(); // content
+
+        tx.send(vec![false, true, true, true]).unwrap(); // sync
         tx.send(vec![true, true, true, false]).unwrap();
+
         tx.send(vec![]).unwrap();
 
         handle.join().unwrap();

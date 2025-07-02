@@ -2,8 +2,8 @@ use crate::bitvecdeque::BitVecDeque;
 use std::sync::mpsc;
 
 pub(crate) enum ParserState {
-    SearchingSyncStart,
-    SearchingSyncEnd,
+    SearchingStartSync,
+    SearchingEndSync,
 }
 
 struct Deframer {
@@ -22,7 +22,7 @@ impl Deframer {
             reader: rx,
             buffer: BitVecDeque::new(),
             idx: 0,
-            state: ParserState::SearchingSyncStart,
+            state: ParserState::SearchingStartSync,
         }
     }
 
@@ -50,20 +50,20 @@ impl Deframer {
             if slice == vec![false, true, true, true, true, true, true, false] {
                 match self.state {
                     // if i was looking for the beginning of a frame
-                    ParserState::SearchingSyncStart => {
+                    ParserState::SearchingStartSync => {
                         // i found it, so i update the state
-                        self.state = ParserState::SearchingSyncEnd;
+                        self.state = ParserState::SearchingEndSync;
                         // i update the index, so i begin looking for the end sync
                         self.idx += 1; // i could advance it by 8 actually, to fast forward the sync
                     }
                     // if i was looking for the end of the frame
-                    ParserState::SearchingSyncEnd => {
+                    ParserState::SearchingEndSync => {
                         // i drain the whole frame, between syncs
                         let frame_bits = self.buffer.drain_range(0, self.idx + 8);
                         frames.push(RawDelimitedBits(frame_bits));
                         // and reset the index to 0 and the parser state, so i can begin again
                         self.idx = 0;
-                        self.state = ParserState::SearchingSyncStart
+                        self.state = ParserState::SearchingStartSync
                     }
                 }
             }
@@ -71,13 +71,13 @@ impl Deframer {
             else {
                 match self.state {
                     // and if i'm looking for the starting sync
-                    ParserState::SearchingSyncStart => {
+                    ParserState::SearchingStartSync => {
                         // i drop the first element, it will be lost, but alas, such is life...
                         // this is something to try to avoid
                         self.buffer.pop_front();
                     }
                     // and if i'm looking for ending sync
-                    ParserState::SearchingSyncEnd => {
+                    ParserState::SearchingEndSync => {
                         // increment the index to continue looking
                         self.idx += 1;
                     }
