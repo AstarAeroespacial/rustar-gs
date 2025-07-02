@@ -14,10 +14,11 @@ use std::sync::mpsc;
 
 const FLAG_ARRAY: [bool; 8] = [false, true, true, true, true, true, true, false];
 
-pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
+pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) -> Vec<Vec<bool>> {
     let mut buffer = BitVecDeque::new();
     let mut cursor_idx = 0;
     let mut state = ParserState::SearchingStartSync;
+    let mut frames: Vec<Vec<bool>> = Vec::new(); // TODO: this should be a Vec<Frame>
 
     loop {
         // Agrego los nuevos bits que llegaron por el pipe
@@ -58,6 +59,7 @@ pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
                     ParserState::SearchingEndSync => {
                         let frame_bits = buffer.drain_range(0, cursor_idx + 8);
                         dbg!(&frame_bits);
+                        frames.push(frame_bits);
                         cursor_idx = 0;
                     }
                 }
@@ -73,6 +75,7 @@ pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) {
             }
         }
     }
+    frames
 }
 
 #[cfg(test)]
@@ -86,7 +89,13 @@ mod tests {
         let (tx, rx) = mpsc::channel::<Vec<bool>>();
 
         let handle = thread::spawn(move || {
-            deframe(rx);
+            let frames = deframe(rx);
+            let mut expected_frame = FLAG_ARRAY.to_vec();
+            expected_frame.extend_from_slice(&[true, true, true, false]);
+            expected_frame.extend_from_slice(&FLAG_ARRAY);
+
+            assert_eq!(frames.len(), 1);
+            assert_eq!(frames[0], expected_frame);
         });
 
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
@@ -102,7 +111,13 @@ mod tests {
         let (tx, rx) = mpsc::channel::<Vec<bool>>();
 
         let handle = thread::spawn(move || {
-            deframe(rx);
+            let frames = deframe(rx);
+            let mut expected_frame = FLAG_ARRAY.to_vec();
+            expected_frame.extend_from_slice(&[true, true, true, false]);
+            expected_frame.extend_from_slice(&FLAG_ARRAY);
+
+            assert_eq!(frames.len(), 1);
+            assert_eq!(frames[0], expected_frame);
         });
 
         tx.send(vec![false, true, true, false]).unwrap(); // garbage
