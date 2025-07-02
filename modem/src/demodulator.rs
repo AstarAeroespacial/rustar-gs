@@ -38,16 +38,10 @@ const BATCH_SIZE: usize = 2; // Number of samples per batch
 impl<R: Read + Send + 'static, W: Write + Send + 'static> Demodulator<R, W> {
     // TODO: can fail!!
     pub fn build(reader: R, writer: W) -> Self {
-        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-        let manifest_path = PathBuf::from(manifest_dir);
-        let project_root = manifest_path.parent().unwrap();
-
-        let python_path = project_root.join("modem/gnuradio/python");
-        let script_path = project_root.join("modem/flowgraphs/afsk_demod_headless.py");
-
-        let child = Command::new(&python_path)
-            .arg(&script_path)
+        let child = Command::new(dir.join("gnuradio/python"))
+            .arg(dir.join("flowgraphs/afsk_demod_headless.py"))
             .spawn()
             .expect("Failed to run GNU radio flowgraph");
 
