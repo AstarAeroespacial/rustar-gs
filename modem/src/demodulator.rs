@@ -40,8 +40,11 @@ impl<R: Read + Send + 'static, W: Write + Send + 'static> Demodulator<R, W> {
     pub fn build(reader: R, writer: W) -> Self {
         let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
-        let child = Command::new(dir.join("gnuradio/python"))
-            .arg(dir.join("flowgraphs/afsk_demod_headless.py"))
+        let python = dir.join("gnuradio/python");
+        let flowgraph = dir.join("flowgraphs/afsk_demod_headless.py");
+
+        let child = Command::new(&python)
+            .arg(&flowgraph)
             .spawn()
             .expect("Failed to run GNU radio flowgraph");
 
