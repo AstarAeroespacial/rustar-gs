@@ -14,7 +14,7 @@ use std::sync::mpsc;
 
 const FLAG_ARRAY: [bool; 8] = [false, true, true, true, true, true, true, false];
 
-pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) -> Vec<Vec<bool>> {
+pub fn read_frames(rx: mpsc::Receiver<Vec<bool>>) -> Vec<Vec<bool>> {
     let mut buffer = BitVecDeque::new();
     let mut cursor_idx = 0;
     let mut state = ParserState::SearchingStartSync;
@@ -59,6 +59,8 @@ pub fn deframe(rx: mpsc::Receiver<Vec<bool>>) -> Vec<Vec<bool>> {
                     ParserState::SearchingEndSync => {
                         let frame_bits = buffer.drain_range(0, cursor_idx + 8);
                         dbg!(&frame_bits);
+                        // if let Some(frame) = Frame::new(frame_bits);
+                        //     frames.push(frame);
                         frames.push(frame_bits);
                         cursor_idx = 0;
                     }
@@ -89,7 +91,7 @@ mod tests {
         let (tx, rx) = mpsc::channel::<Vec<bool>>();
 
         let handle = thread::spawn(move || {
-            let frames = deframe(rx);
+            let frames = read_frames(rx);
             let mut expected_frame = FLAG_ARRAY.to_vec();
             expected_frame.extend_from_slice(&[true, true, true, false]);
             expected_frame.extend_from_slice(&FLAG_ARRAY);
@@ -111,7 +113,7 @@ mod tests {
         let (tx, rx) = mpsc::channel::<Vec<bool>>();
 
         let handle = thread::spawn(move || {
-            let frames = deframe(rx);
+            let frames = read_frames(rx);
             let mut expected_frame = FLAG_ARRAY.to_vec();
             expected_frame.extend_from_slice(&[true, true, true, false]);
             expected_frame.extend_from_slice(&FLAG_ARRAY);
