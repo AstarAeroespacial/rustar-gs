@@ -25,7 +25,7 @@ pub fn read_frames(rx: mpsc::Receiver<Vec<bool>>) -> Vec<Vec<bool>> {
         let new_bits = rx.recv().unwrap();
         dbg!(&new_bits);
 
-        if new_bits.len() == 0 {
+        if new_bits.is_empty() {
             break;
         }
 
@@ -62,6 +62,8 @@ pub fn read_frames(rx: mpsc::Receiver<Vec<bool>>) -> Vec<Vec<bool>> {
                         // if let Some(frame) = Frame::new(frame_bits);
                         //     frames.push(frame);
                         frames.push(frame_bits);
+
+                        state = ParserState::SearchingStartSync;
                         cursor_idx = 0;
                     }
                 }
@@ -123,14 +125,98 @@ mod tests {
         });
 
         tx.send(vec![false, true, true, false]).unwrap(); // garbage
-
-        tx.send(vec![false, true, true, true]).unwrap(); // sync
-        tx.send(vec![true, true, true, false]).unwrap();
-
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
         tx.send(vec![true, true, true, false]).unwrap(); // content
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![]).unwrap();
 
-        tx.send(vec![false, true, true, true]).unwrap(); // sync
-        tx.send(vec![true, true, true, false]).unwrap();
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn frame_with_missing_end_flag() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let frames = read_frames(rx);
+            assert_eq!(frames.len(), 0);
+        });
+
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![true, false, true, false]).unwrap(); // content
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn two_frames_with_no_garbage() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let frames = read_frames(rx);
+
+            let mut expected_frame1 = FLAG_ARRAY.to_vec();
+            expected_frame1.extend_from_slice(&[true, false, true, false]);
+            expected_frame1.extend_from_slice(&FLAG_ARRAY);
+
+            let mut expected_frame2 = FLAG_ARRAY.to_vec();
+            expected_frame2.extend_from_slice(&[false, false, true, true]);
+            expected_frame2.extend_from_slice(&FLAG_ARRAY);
+
+            dbg!(&frames);
+            assert_eq!(frames.len(), 2);
+            assert_eq!(frames[0], expected_frame1);
+            assert_eq!(frames[1], expected_frame2);
+        });
+
+        // Frame 1
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+        tx.send(vec![true, false, true, false]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+
+        // Frame 2
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+        tx.send(vec![false, false, true, true]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn two_frames_with_garbage_between() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let frames = read_frames(rx);
+
+            let mut expected_frame1 = FLAG_ARRAY.to_vec();
+            expected_frame1.extend_from_slice(&[true, false, true, false]);
+            expected_frame1.extend_from_slice(&FLAG_ARRAY);
+
+            let mut expected_frame2 = FLAG_ARRAY.to_vec();
+            expected_frame2.extend_from_slice(&[false, false, true, true]);
+            expected_frame2.extend_from_slice(&FLAG_ARRAY);
+
+            assert_eq!(frames.len(), 2);
+            assert_eq!(frames[0], expected_frame1);
+            assert_eq!(frames[1], expected_frame2);
+        });
+
+        // Frame 1
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+        tx.send(vec![true, false, true, false]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+
+        // Garbage between frames
+        tx.send(vec![true, true, false, false, true]).unwrap();
+
+        // Frame 2
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+        tx.send(vec![false, false, true, true]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
 
         tx.send(vec![]).unwrap();
 
