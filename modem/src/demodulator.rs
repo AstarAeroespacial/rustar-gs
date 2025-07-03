@@ -1,7 +1,7 @@
 use std::{
     env,
     io::{Read, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Child, Command},
     thread,
 };
@@ -15,6 +15,7 @@ pub struct Demodulator<R: Read + Send + 'static, W: Write + Send + 'static> {
     pub reader: R,
     // to where we write the bits
     pub writer: W,
+
     #[allow(dead_code)]
     python_proc: Child, // keep it alive
 }
@@ -35,13 +36,24 @@ const BATCH_SIZE: usize = 2; // Number of samples per batch
 
 // TODO: implement Drop and kill child.
 
+// TODO: builder OR optional method to add python path
+// TODO: builder, build on one step, begin execution of the flowgraph on another
 impl<R: Read + Send + 'static, W: Write + Send + 'static> Demodulator<R, W> {
     // TODO: can fail!!
-    pub fn build(reader: R, writer: W) -> Self {
-        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    pub fn build(
+        reader: R,
+        writer: W,
+        flowgraph: impl AsRef<str>,
+        python_path: Option<impl AsRef<Path>>, // TODO: does it NEED to be a pathbuf??
+    ) -> Self {
+        // Use `python_path`, or whatever `python` is in `$PATH`.
+        let python = python_path
+            .map(|p| p.as_ref().to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("python"));
 
-        let python = dir.join("gnuradio/python");
-        let flowgraph = dir.join("flowgraphs/afsk_demod_headless.py");
+        let flowgraph = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("flowgraphs")
+            .join(format!("{}.py", flowgraph.as_ref()));
 
         let child = Command::new(&python)
             .arg(&flowgraph)
@@ -51,8 +63,8 @@ impl<R: Read + Send + 'static, W: Write + Send + 'static> Demodulator<R, W> {
         Self {
             // sink: publisher,
             // source: subscriber,
-            reader: reader,
-            writer: writer,
+            reader,
+            writer,
             python_proc: child,
         }
     }
