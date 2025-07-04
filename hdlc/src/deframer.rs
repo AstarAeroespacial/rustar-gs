@@ -8,7 +8,10 @@ use std::sync::mpsc;
 // 4. Async.
 // 5. Pushback o algo, sino el ring buffer podría crecer indiscriminadamente.
 
-pub(crate) const FLAG_ARRAY: [bool; 8] = [false, true, true, true, true, true, true, false];
+// Typical HDLC frames are up to 260 bytes (2080 bits)
+// 4096 bits (512 bytes) is a safe upper bound for most use cases
+const MAX_BUFFER_LEN: usize = 4096;
+const FLAG_ARRAY: [bool; 8] = [false, true, true, true, true, true, true, false];
 
 pub(crate) enum ParserState {
     SearchingStartSync,
@@ -63,8 +66,14 @@ impl Deframer {
     fn find_frames(&mut self) -> Vec<RawFrame> {
         let mut frames = Vec::new();
 
-        // TODO: add a MAX, because if it never finds an ending sync the while never ends, and drop the buffer contents
         while self.buffer.len() - self.idx >= 8 {
+            // Drop buffer if it grows too large (prevents DoS via never-ending garbage)
+            if self.buffer.len() > MAX_BUFFER_LEN {
+                self.buffer.clear();
+                self.idx = 0;
+                self.state = ParserState::SearchingStartSync;
+                break;
+            }
             // Usar slice_to_bitvec para obtener 8 bits y convertir a Vec<bool>
             let bitvec_slice = self.buffer.slice_to_bitvec(self.idx, self.idx + 8);
             let slice: Vec<bool> = bitvec_slice.iter().map(|bit| *bit).collect();
@@ -81,7 +90,7 @@ impl Deframer {
                         // drain the whole frame between syncs
                         let frame_bits = self.buffer.drain_range(0, self.idx + 8);
 
-                        // if let Some(frame) = Frame::new(frame_bits);
+                        // if let Some(frame) = Frame::new(frame_bits); // bit destuffing should be done here
                         //     frames.push(frame);
                         frames.push(RawFrame(frame_bits));
 
@@ -141,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn basic_frame_with_no_garbage() {
+    fn frame_with_no_garbage() {
         let (tx, rx) = mpsc::channel::<Vec<bool>>();
 
         let handle = thread::spawn(move || {
@@ -165,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn basic_frame_with_previous_garbage() {
+    fn frame_with_previous_garbage() {
         let (tx, rx) = mpsc::channel::<Vec<bool>>();
 
         let handle = thread::spawn(move || {
@@ -184,6 +193,23 @@ mod tests {
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
         tx.send(vec![true, true, true, false]).unwrap(); // content
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn just_garbage() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+            assert_eq!(frames.len(), 0);
+        });
+
+        tx.send(vec![true, false, true, false]).unwrap(); // garbage
+        tx.send(vec![false, true, true, false]).unwrap(); // garbage
         tx.send(vec![]).unwrap();
 
         handle.join().unwrap();
@@ -251,17 +277,17 @@ mod tests {
             let mut deframer = Deframer::new(rx);
             let frames = deframer.run();
 
-            let mut expected_frame1 = FLAG_ARRAY.to_vec();
-            expected_frame1.extend_from_slice(&[true, false, true, false]);
-            expected_frame1.extend_from_slice(&FLAG_ARRAY);
+            let mut expected_frame1_bits = FLAG_ARRAY.to_vec();
+            expected_frame1_bits.extend_from_slice(&[true, false, true, false]);
+            expected_frame1_bits.extend_from_slice(&FLAG_ARRAY);
 
-            let mut expected_frame2 = FLAG_ARRAY.to_vec();
-            expected_frame2.extend_from_slice(&[false, false, true, true]);
-            expected_frame2.extend_from_slice(&FLAG_ARRAY);
+            let mut expected_frame2_bits = FLAG_ARRAY.to_vec();
+            expected_frame2_bits.extend_from_slice(&[false, false, true, true]);
+            expected_frame2_bits.extend_from_slice(&FLAG_ARRAY);
 
             assert_eq!(frames.len(), 2);
-            assert_eq!(frames[0], RawFrame(expected_frame1));
-            assert_eq!(frames[1], RawFrame(expected_frame2));
+            assert_eq!(frames[0], RawFrame(expected_frame1_bits));
+            assert_eq!(frames[1], RawFrame(expected_frame2_bits));
         });
 
         // Frame 1
@@ -290,17 +316,17 @@ mod tests {
             let mut deframer = Deframer::new(rx);
             let frames = deframer.run();
 
-            let mut expected_frame1 = FLAG_ARRAY.to_vec();
-            expected_frame1.extend_from_slice(&[true, true, true, false]);
-            expected_frame1.extend_from_slice(&FLAG_ARRAY);
+            let mut expected_frame1_bits = FLAG_ARRAY.to_vec();
+            expected_frame1_bits.extend_from_slice(&[true, true, true, false]);
+            expected_frame1_bits.extend_from_slice(&FLAG_ARRAY);
 
-            let mut expected_frame2 = FLAG_ARRAY.to_vec();
-            expected_frame2.extend_from_slice(&[true, true, true, false]);
-            expected_frame2.extend_from_slice(&FLAG_ARRAY);
+            let mut expected_frame2_bits = FLAG_ARRAY.to_vec();
+            expected_frame2_bits.extend_from_slice(&[true, true, true, false]);
+            expected_frame2_bits.extend_from_slice(&FLAG_ARRAY);
 
             assert_eq!(frames.len(), 2);
-            assert_eq!(frames[0], RawFrame(expected_frame1));
-            assert_eq!(frames[1], RawFrame(expected_frame2));
+            assert_eq!(frames[0], RawFrame(expected_frame1_bits));
+            assert_eq!(frames[1], RawFrame(expected_frame2_bits));
         });
 
         tx.send(vec![false, true, true, false]).unwrap(); // garbage
@@ -318,6 +344,62 @@ mod tests {
         tx.send(FLAG_ARRAY.to_vec()).unwrap();
 
         tx.send(vec![false, true, true, false]).unwrap(); // garbage
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn two_empty_frames_with_garbage_before_and_after() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+
+            let mut expected_frame1_bits = FLAG_ARRAY.to_vec();
+            expected_frame1_bits.extend_from_slice(&FLAG_ARRAY);
+            let mut expected_frame2_bits = FLAG_ARRAY.to_vec();
+            expected_frame2_bits.extend_from_slice(&FLAG_ARRAY);
+
+            assert_eq!(frames.len(), 2);
+            assert_eq!(frames[0], RawFrame(expected_frame1_bits));
+            assert_eq!(frames[1], RawFrame(expected_frame2_bits));
+        });
+
+        tx.send(vec![false, true, true, true]).unwrap(); // garbage
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![false, true, true, false]).unwrap(); // garbage
+
+        tx.send(vec![]).unwrap(); // end signal for testing
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn flags_come_in_chunks() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+
+            let mut expected_frame_bits = FLAG_ARRAY.to_vec();
+            expected_frame_bits.extend_from_slice(&[true, true, true, false]);
+            expected_frame_bits.extend_from_slice(&FLAG_ARRAY);
+
+            assert_eq!(frames.len(), 1);
+            assert_eq!(frames[0], RawFrame(expected_frame_bits));
+        });
+
+        tx.send(FLAG_ARRAY[..4].to_vec()).unwrap(); // first half of sync
+        tx.send(FLAG_ARRAY[4..].to_vec()).unwrap(); // second half of sync
+        tx.send(vec![true, true, true, false]).unwrap(); // content
+        tx.send(FLAG_ARRAY[..2].to_vec()).unwrap(); // first half of sync
+        tx.send(FLAG_ARRAY[2..].to_vec()).unwrap(); // second half of sync
         tx.send(vec![]).unwrap();
 
         handle.join().unwrap();

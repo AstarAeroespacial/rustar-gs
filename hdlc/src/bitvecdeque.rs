@@ -56,6 +56,13 @@ impl BitVecDeque {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.blocks.clear();
+        self.front_offset = 0;
+        self.back_used = 0;
+        self.len = 0;
+    }
+
     pub fn with_capacity(capacity: usize) -> Self {
         let blocks_needed = (capacity + BITS_PER_BLOCK - 1) / BITS_PER_BLOCK;
         Self {
