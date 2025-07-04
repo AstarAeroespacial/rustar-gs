@@ -1,6 +1,15 @@
 use crate::bitvecdeque::BitVecDeque;
 use std::sync::mpsc;
 
+// Esta es una implementación bastante naive, TODO:
+// 1. Los bool ocupan u8. Deberían recibirse u8s a interpretar como bits packeados (usando `bitvec`).
+// 2. Buscar cómo evitar copies.
+// 3. Tendría que ser un struct.
+// 4. Async.
+// 5. Pushback o algo, sino el ring buffer podría crecer indiscriminadamente.
+
+pub(crate) const FLAG_ARRAY: [bool; 8] = [false, true, true, true, true, true, true, false];
+
 pub(crate) enum ParserState {
     SearchingStartSync,
     SearchingEndSync,
@@ -14,7 +23,7 @@ struct Deframer {
 }
 
 #[derive(Debug, PartialEq)]
-struct RawDelimitedBits(Vec<bool>);
+struct RawFrame(Vec<bool>); // temporary, to be deleted when Frame is implemented
 
 impl Deframer {
     pub fn new(rx: mpsc::Receiver<Vec<bool>>) -> Self {
@@ -26,57 +35,69 @@ impl Deframer {
         }
     }
 
-    fn run(&mut self) {
+    // the function return is temporary for testing purposes
+    pub fn run(&mut self) -> Vec<RawFrame> {
+        let mut frames = Vec::new();
         while let Ok(new_bits) = self.reader.recv() {
-            // Extender el buffer con los nuevos bits
+            // for testing purposes
+            if new_bits.is_empty() {
+                break;
+            }
+
             for bit in new_bits {
                 self.buffer.push_back(bit);
             }
 
-            let raw_delimited_frames = self.try_find_delimited();
+            let new_frames = self.find_frames();
+            frames.extend(new_frames);
+            // let packets = frames
+            //     .into_iter()
+            //     .map(|frame| Packet::new(frame))
+            //     .collect::<Vec<Packet>>();
+            // send these packets to the web app?
+            // Packet should be an interface so multiple packet types can be implemented
         }
+        frames
     }
 
-    fn try_find_delimited(&mut self) -> Vec<RawDelimitedBits> {
+    fn find_frames(&mut self) -> Vec<RawFrame> {
         let mut frames = Vec::new();
 
-        // TODO: add a MAX, because if i never find an ending sync the while never ends, and drop the buffer contents
+        // TODO: add a MAX, because if it never finds an ending sync the while never ends, and drop the buffer contents
         while self.buffer.len() - self.idx >= 8 {
             // Usar slice_to_bitvec para obtener 8 bits y convertir a Vec<bool>
             let bitvec_slice = self.buffer.slice_to_bitvec(self.idx, self.idx + 8);
             let slice: Vec<bool> = bitvec_slice.iter().map(|bit| *bit).collect();
 
-            // if i found sync 01111110
-            if slice == vec![false, true, true, true, true, true, true, false] {
+            // found sync
+            if slice == FLAG_ARRAY {
                 match self.state {
-                    // if i was looking for the beginning of a frame
                     ParserState::SearchingStartSync => {
-                        // i found it, so i update the state
                         self.state = ParserState::SearchingEndSync;
-                        // i update the index, so i begin looking for the end sync
-                        self.idx += 1; // i could advance it by 8 actually, to fast forward the sync
+                        // update the index, so it starts looking for the end sync
+                        self.idx += 8;
                     }
-                    // if i was looking for the end of the frame
                     ParserState::SearchingEndSync => {
-                        // i drain the whole frame, between syncs
+                        // drain the whole frame between syncs
                         let frame_bits = self.buffer.drain_range(0, self.idx + 8);
-                        frames.push(RawDelimitedBits(frame_bits));
-                        // and reset the index to 0 and the parser state, so i can begin again
+
+                        // if let Some(frame) = Frame::new(frame_bits);
+                        //     frames.push(frame);
+                        frames.push(RawFrame(frame_bits));
+
                         self.idx = 0;
                         self.state = ParserState::SearchingStartSync
                     }
                 }
             }
-            // if i didn't find a sync
+            // if it's not a sync
             else {
                 match self.state {
-                    // and if i'm looking for the starting sync
                     ParserState::SearchingStartSync => {
-                        // i drop the first element, it will be lost, but alas, such is life...
+                        // drop the first element, it will be lost, but alas, such is life...
                         // this is something to try to avoid
                         self.buffer.pop_front();
                     }
-                    // and if i'm looking for ending sync
                     ParserState::SearchingEndSync => {
                         // increment the index to continue looking
                         self.idx += 1;
@@ -84,7 +105,6 @@ impl Deframer {
                 }
             }
         }
-
         frames
     }
 }
@@ -92,95 +112,214 @@ impl Deframer {
 #[cfg(test)]
 mod tests {
 
+    use super::*;
     use std::thread;
 
-    use super::*;
-
     #[test]
-    fn one_frame() {
+    fn empty_frame_with_garbage_before_and_after() {
         let (tx, rx) = mpsc::channel::<Vec<bool>>();
 
-        let mut deframer = Deframer::new(rx);
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
 
-        // Usar from_bits para crear el BitVecDeque
-        deframer.buffer = BitVecDeque::from_bits(vec![
-            false, true, true, false, // garbage
-            false, true, true, true, true, true, true, false, // sync
-            true, true, true, false, // content
-            false, true, true, true, true, true, true, false, // sync
-            false, true, true, false, // garbage
-        ]);
+            let mut expected_frame_bits = FLAG_ARRAY.to_vec();
+            expected_frame_bits.extend_from_slice(&FLAG_ARRAY);
 
-        let frames = deframer.try_find_delimited();
+            assert_eq!(frames.len(), 1);
+            assert_eq!(frames[0], RawFrame(expected_frame_bits));
+        });
 
-        assert_eq!(
-            frames,
-            vec![RawDelimitedBits(vec![
-                false, true, true, true, true, true, true, false, // sync
-                true, true, true, false, // content
-                false, true, true, true, true, true, true, false, // sync
-            ])]
-        )
+        tx.send(vec![false, true, true, false]).unwrap(); // garbage
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![false, true, true, false]).unwrap(); // garbage
+
+        tx.send(vec![]).unwrap(); // end signal for testing
+
+        handle.join().unwrap();
     }
 
     #[test]
-    fn empty_frame() {
+    fn basic_frame_with_no_garbage() {
         let (tx, rx) = mpsc::channel::<Vec<bool>>();
 
-        let mut deframer = Deframer::new(rx);
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
 
-        deframer.buffer = BitVecDeque::from_bits(vec![
-            false, true, true, false, // garbage
-            false, true, true, true, true, true, true, false, // sync
-            false, true, true, true, true, true, true, false, // sync
-            false, true, true, false, // garbage
-        ]);
+            let mut expected_frame_bits = FLAG_ARRAY.to_vec();
+            expected_frame_bits.extend_from_slice(&[true, true, true, false]);
+            expected_frame_bits.extend_from_slice(&FLAG_ARRAY);
 
-        let frames = deframer.try_find_delimited();
+            assert_eq!(frames.len(), 1);
+            assert_eq!(frames[0], RawFrame(expected_frame_bits));
+        });
 
-        assert_eq!(
-            frames,
-            vec![RawDelimitedBits(vec![
-                false, true, true, true, true, true, true, false, // sync
-                false, true, true, true, true, true, true, false, // sync
-            ])]
-        )
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![true, true, true, false]).unwrap(); // content
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
     }
 
     #[test]
-    fn two_frames() {
+    fn basic_frame_with_previous_garbage() {
         let (tx, rx) = mpsc::channel::<Vec<bool>>();
 
-        let mut deframer = Deframer::new(rx);
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
 
-        deframer.buffer = BitVecDeque::from_bits(vec![
-            false, true, true, false, // garbage
-            false, true, true, true, true, true, true, false, // sync
-            true, true, true, false, // content
-            false, true, true, true, true, true, true, false, // sync
-            false, true, true, false, // garbage
-            false, true, true, true, true, true, true, false, // sync
-            true, true, true, false, // content
-            false, true, true, true, true, true, true, false, // sync
-            false, true, true, false, // garbage
-        ]);
+            let mut expected_frame_bits = FLAG_ARRAY.to_vec();
+            expected_frame_bits.extend_from_slice(&[true, true, true, false]);
+            expected_frame_bits.extend_from_slice(&FLAG_ARRAY);
 
-        let frames = deframer.try_find_delimited();
+            assert_eq!(frames.len(), 1);
+            assert_eq!(frames[0], RawFrame(expected_frame_bits));
+        });
 
-        assert_eq!(
-            frames,
-            vec![
-                RawDelimitedBits(vec![
-                    false, true, true, true, true, true, true, false, // sync
-                    true, true, true, false, // content
-                    false, true, true, true, true, true, true, false, // sync
-                ]),
-                RawDelimitedBits(vec![
-                    false, true, true, true, true, true, true, false, // sync
-                    true, true, true, false, // content
-                    false, true, true, true, true, true, true, false, // sync
-                ])
-            ]
-        )
+        tx.send(vec![false, true, true, false]).unwrap(); // garbage
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![true, true, true, false]).unwrap(); // content
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn frame_with_missing_end_flag() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+            assert_eq!(frames.len(), 0);
+        });
+
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![true, false, true, false]).unwrap(); // content
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn two_frames_with_no_garbage() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+
+            let mut expected_frame1_bits = FLAG_ARRAY.to_vec();
+            expected_frame1_bits.extend_from_slice(&[true, false, true, false]);
+            expected_frame1_bits.extend_from_slice(&FLAG_ARRAY);
+
+            let mut expected_frame2_bits = FLAG_ARRAY.to_vec();
+            expected_frame2_bits.extend_from_slice(&[false, false, true, true]);
+            expected_frame2_bits.extend_from_slice(&FLAG_ARRAY);
+
+            dbg!(&frames);
+            assert_eq!(frames.len(), 2);
+            assert_eq!(frames[0], RawFrame(expected_frame1_bits));
+            assert_eq!(frames[1], RawFrame(expected_frame2_bits));
+        });
+
+        // Frame 1
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+        tx.send(vec![true, false, true, false]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+
+        // Frame 2
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+        tx.send(vec![false, false, true, true]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn two_frames_with_garbage_between() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+
+            let mut expected_frame1 = FLAG_ARRAY.to_vec();
+            expected_frame1.extend_from_slice(&[true, false, true, false]);
+            expected_frame1.extend_from_slice(&FLAG_ARRAY);
+
+            let mut expected_frame2 = FLAG_ARRAY.to_vec();
+            expected_frame2.extend_from_slice(&[false, false, true, true]);
+            expected_frame2.extend_from_slice(&FLAG_ARRAY);
+
+            assert_eq!(frames.len(), 2);
+            assert_eq!(frames[0], RawFrame(expected_frame1));
+            assert_eq!(frames[1], RawFrame(expected_frame2));
+        });
+
+        // Frame 1
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+        tx.send(vec![true, false, true, false]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+
+        // Garbage between frames
+        tx.send(vec![true, true, false, false, true]).unwrap();
+
+        // Frame 2
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+        tx.send(vec![false, false, true, true]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn two_frames_with_garbage_before_between_and_after() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+
+            let mut expected_frame1 = FLAG_ARRAY.to_vec();
+            expected_frame1.extend_from_slice(&[true, true, true, false]);
+            expected_frame1.extend_from_slice(&FLAG_ARRAY);
+
+            let mut expected_frame2 = FLAG_ARRAY.to_vec();
+            expected_frame2.extend_from_slice(&[true, true, true, false]);
+            expected_frame2.extend_from_slice(&FLAG_ARRAY);
+
+            assert_eq!(frames.len(), 2);
+            assert_eq!(frames[0], RawFrame(expected_frame1));
+            assert_eq!(frames[1], RawFrame(expected_frame2));
+        });
+
+        tx.send(vec![false, true, true, false]).unwrap(); // garbage
+
+        // Frame 1
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+        tx.send(vec![true, true, true, false]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+
+        tx.send(vec![false, true, true, false]).unwrap(); // garbage
+
+        // Frame 2
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+        tx.send(vec![true, true, true, false]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+
+        tx.send(vec![false, true, true, false]).unwrap(); // garbage
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
     }
 }
