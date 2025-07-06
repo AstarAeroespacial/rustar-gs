@@ -1,7 +1,13 @@
-use predict_rs::{
-    observer, orbit,
-    predict::{self, PredictObservation},
-};
+use predict_rs::{consts::RAD_TO_DEG, observer, orbit, predict};
+
+/// The predicted observation.
+#[derive(Debug)]
+pub struct Observation {
+    /// Azimuth, in degrees.
+    pub azimuth: f64,
+    /// Elevation, in degrees.
+    pub elevation: f64,
+}
 
 #[derive(Debug)]
 pub enum TrackerError {
@@ -30,12 +36,15 @@ impl<'a> Tracker<'a> {
         })
     }
 
-    pub fn track(&self, at: i64) -> Result<PredictObservation, TrackerError> {
+    pub fn track(&self, at: i64) -> Result<Observation, TrackerError> {
         let orbit = orbit::predict_orbit(self.elements, &self.constants, at as f64)
             .map_err(|err| TrackerError::OrbitPredictionError(err))?;
 
         let observation = observer::predict_observe_orbit(self.observer, &orbit);
 
-        Ok(observation)
+        Ok(Observation {
+            azimuth: observation.azimuth * RAD_TO_DEG,
+            elevation: observation.elevation * RAD_TO_DEG,
+        })
     }
 }
