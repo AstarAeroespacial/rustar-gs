@@ -13,7 +13,7 @@ use std::sync::mpsc;
 const MAX_BUFFER_LEN: usize = 4096;
 const FLAG_ARRAY: [bool; 8] = [false, true, true, true, true, true, true, false];
 
-pub(crate) enum ParserState {
+pub enum ParserState {
     SearchingStartSync,
     SearchingEndSync,
 }
@@ -400,6 +400,117 @@ mod tests {
         tx.send(vec![true, true, true, false]).unwrap(); // content
         tx.send(FLAG_ARRAY[..2].to_vec()).unwrap(); // first half of sync
         tx.send(FLAG_ARRAY[2..].to_vec()).unwrap(); // second half of sync
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn frame_with_max_buffer_length() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+
+            let mut expected_frame_bits = FLAG_ARRAY.to_vec();
+            expected_frame_bits.extend_from_slice(&[false; MAX_BUFFER_LEN - 16]);
+            expected_frame_bits.extend_from_slice(&FLAG_ARRAY);
+
+            assert_eq!(frames.len(), 1);
+            assert_eq!(frames[0], RawFrame(expected_frame_bits));
+        });
+
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+
+        for _ in 0..MAX_BUFFER_LEN - 16 {
+            // MAX_BUFFER_LEN - 16 bits of content
+            tx.send(vec![false]).unwrap();
+        }
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn frame_exceeds_max_buffer_length() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+
+            assert_eq!(frames.len(), 0);
+        });
+
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+
+        tx.send(vec![false; MAX_BUFFER_LEN - 15]).unwrap(); // MAX_BUFFER_LEN - 15 bits of content
+
+        // not enough space in buffer (7 bits) for closing flag
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn frame_after_cleared_buffer() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+
+            let mut expected_frame_bits = FLAG_ARRAY.to_vec();
+            expected_frame_bits.extend_from_slice(&[true, true, true, false]);
+            expected_frame_bits.extend_from_slice(&FLAG_ARRAY);
+
+            assert_eq!(frames.len(), 1);
+            assert_eq!(frames[0], RawFrame(expected_frame_bits));
+        });
+
+        tx.send(vec![false; MAX_BUFFER_LEN]).unwrap();
+
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![true, true, true, false]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn frame_after_max_buffer_length_frame() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+
+            let mut expected_frame1_bits = FLAG_ARRAY.to_vec();
+            expected_frame1_bits.extend_from_slice(&[false; MAX_BUFFER_LEN - 16]);
+            expected_frame1_bits.extend_from_slice(&FLAG_ARRAY);
+
+            let mut expected_frame2_bits = FLAG_ARRAY.to_vec();
+            expected_frame2_bits.extend_from_slice(&[true, true, true, false]);
+            expected_frame2_bits.extend_from_slice(&FLAG_ARRAY);
+
+            assert_eq!(frames.len(), 2);
+            assert_eq!(frames[0], RawFrame(expected_frame1_bits));
+            assert_eq!(frames[1], RawFrame(expected_frame2_bits));
+        });
+
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+        for _ in 0..MAX_BUFFER_LEN - 16 {
+            tx.send(vec![false]).unwrap();
+        }
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
+        tx.send(vec![true, true, true, false]).unwrap();
+        tx.send(FLAG_ARRAY.to_vec()).unwrap();
         tx.send(vec![]).unwrap();
 
         handle.join().unwrap();
