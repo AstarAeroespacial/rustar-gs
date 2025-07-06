@@ -1,2 +1,3 @@
 [workspace]
-members = []
+members = ["modem"]
+resolver = "3"
