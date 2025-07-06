@@ -1,2 +1,3 @@
 [workspace]
-members = []
+members = ["tracking"]
+resolver = "3"
