@@ -1,12 +1,38 @@
-use predict_rs::{consts::RAD_TO_DEG, observer, orbit, predict};
+use predict_rs::{
+    consts::{DEG_TO_RAD, RAD_TO_DEG},
+    observer, orbit,
+    predict::PredictObserver,
+};
+
+pub type Degrees = f64;
+pub type Meters = f64;
+
+pub struct Observer {
+    /// Ground station latitude, in degrees.
+    latitude: Degrees,
+    /// Ground station longitude, in degrees.
+    longitude: Degrees,
+    /// Ground station altitude, in meters.
+    altitude: Meters,
+}
+
+impl Observer {
+    pub fn new(latitude: Degrees, longitude: Degrees, altitude: Meters) -> Self {
+        Self {
+            latitude,
+            longitude,
+            altitude,
+        }
+    }
+}
 
 /// The predicted observation.
 #[derive(Debug)]
 pub struct Observation {
     /// Azimuth, in degrees.
-    pub azimuth: f64,
+    pub azimuth: Degrees,
     /// Elevation, in degrees.
-    pub elevation: f64,
+    pub elevation: Degrees,
 }
 
 #[derive(Debug)]
@@ -16,18 +42,23 @@ pub enum TrackerError {
 }
 
 pub struct Tracker<'a> {
-    observer: &'a predict::PredictObserver,
+    observer: PredictObserver,
     elements: &'a sgp4::Elements,
     constants: sgp4::Constants,
 }
 
 impl<'a> Tracker<'a> {
-    pub fn new(
-        observer: &'a predict::PredictObserver,
-        elements: &'a sgp4::Elements,
-    ) -> Result<Self, TrackerError> {
+    pub fn new(observer: &Observer, elements: &'a sgp4::Elements) -> Result<Self, TrackerError> {
         let constants = sgp4::Constants::from_elements(elements)
             .map_err(|err| TrackerError::ElementsError(err))?;
+
+        let observer = PredictObserver {
+            name: "".to_string(),
+            latitude: observer.latitude * DEG_TO_RAD,
+            longitude: observer.longitude * DEG_TO_RAD,
+            altitude: observer.altitude,
+            min_elevation: 0.0,
+        };
 
         Ok(Self {
             observer,
@@ -40,7 +71,7 @@ impl<'a> Tracker<'a> {
         let orbit = orbit::predict_orbit(self.elements, &self.constants, at as f64)
             .map_err(|err| TrackerError::OrbitPredictionError(err))?;
 
-        let observation = observer::predict_observe_orbit(self.observer, &orbit);
+        let observation = observer::predict_observe_orbit(&self.observer, &orbit);
 
         Ok(Observation {
             azimuth: observation.azimuth * RAD_TO_DEG,

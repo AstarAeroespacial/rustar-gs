@@ -1,6 +1,5 @@
-use predict_rs::{consts::DEG_TO_RAD, predict::PredictObserver};
 use sgp4::chrono;
-use tracking::{self, Tracker};
+use tracking::{Observer, Tracker};
 
 fn main() {
     let elements = sgp4::Elements::from_tle(
@@ -10,13 +9,7 @@ fn main() {
     )
     .unwrap();
 
-    let buenos_aires = PredictObserver {
-        name: "Buenos Aires".to_string(),
-        latitude: -34.6 * DEG_TO_RAD,
-        longitude: -58.4 * DEG_TO_RAD,
-        altitude: 2.5,
-        min_elevation: 0.0,
-    };
+    let buenos_aires = Observer::new(-34.6, -58.4, 2.5);
 
     let tracker = Tracker::new(&buenos_aires, &elements).unwrap();
 
