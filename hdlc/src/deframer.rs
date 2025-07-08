@@ -1,13 +1,6 @@
 use crate::bitvecdeque::BitVecDeque;
 use std::sync::mpsc;
 
-// Esta es una implementación bastante naive, TODO:
-// 1. Los bool ocupan u8. Deberían recibirse u8s a interpretar como bits packeados (usando `bitvec`).
-// 2. Buscar cómo evitar copies.
-// 3. Tendría que ser un struct.
-// 4. Async.
-// 5. Pushback o algo, sino el ring buffer podría crecer indiscriminadamente.
-
 // Typical HDLC frames are up to 260 bytes (2080 bits)
 // 4096 bits (512 bytes) is a safe upper bound for most use cases
 const MAX_BUFFER_LEN: usize = 4096;
@@ -215,6 +208,23 @@ mod tests {
         handle.join().unwrap();
     }
 
+    #[test]
+    fn frame_with_missing_start_flag() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+            assert_eq!(frames.len(), 0);
+        });
+
+        tx.send(vec![true, false, true, false]).unwrap(); // content
+        tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![]).unwrap();
+
+        handle.join().unwrap();
+    }
+    
     #[test]
     fn frame_with_missing_end_flag() {
         let (tx, rx) = mpsc::channel::<Vec<bool>>();
