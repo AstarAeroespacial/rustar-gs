@@ -49,8 +49,8 @@ pub struct Tracker<'a> {
 
 impl<'a> Tracker<'a> {
     pub fn new(observer: &Observer, elements: &'a sgp4::Elements) -> Result<Self, TrackerError> {
-        let constants = sgp4::Constants::from_elements(elements)
-            .map_err(|err| TrackerError::ElementsError(err))?;
+        let constants =
+            sgp4::Constants::from_elements(elements).map_err(TrackerError::ElementsError)?;
 
         let observer = PredictObserver {
             name: "".to_string(),
@@ -69,7 +69,7 @@ impl<'a> Tracker<'a> {
 
     pub fn track(&self, at: i64) -> Result<Observation, TrackerError> {
         let orbit = orbit::predict_orbit(self.elements, &self.constants, at as f64)
-            .map_err(|err| TrackerError::OrbitPredictionError(err))?;
+            .map_err(TrackerError::OrbitPredictionError)?;
 
         let observation = observer::predict_observe_orbit(&self.observer, &orbit);
 
