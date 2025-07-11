@@ -309,24 +309,6 @@ impl BitVecDeque {
         deque
     }
 
-    // Método para crear desde BitVec
-    pub fn from_bitvec(bitvec: BitVec) -> Self {
-        let mut deque = Self::with_capacity(bitvec.len());
-        for bit in bitvec {
-            deque.push_back(bit);
-        }
-        deque
-    }
-
-    // Convertir a BitVec
-    pub fn to_bitvec(&self) -> BitVec {
-        let mut bitvec = BitVec::with_capacity(self.len);
-        for i in 0..self.len {
-            bitvec.push(self.get_unchecked(i));
-        }
-        bitvec
-    }
-
     // Métodos adicionales útiles con bitvec
     pub fn append_bitvec(&mut self, other: &BitVec) {
         for bit in other {
@@ -349,6 +331,26 @@ impl BitVecDeque {
             result.push(self.get_unchecked(i));
         }
         result
+    }
+}
+
+impl From<BitVec> for BitVecDeque {
+    fn from(bitvec: BitVec) -> Self {
+        let mut deque = Self::with_capacity(bitvec.len());
+        for bit in bitvec {
+            deque.push_back(bit);
+        }
+        deque
+    }
+}
+
+impl From<BitVecDeque> for BitVec {
+    fn from(deque: BitVecDeque) -> Self {
+        let mut bitvec = Self::with_capacity(deque.len);
+        for i in 0..deque.len {
+            bitvec.push(deque.get_unchecked(i));
+        }
+        bitvec
     }
 }
 
@@ -524,7 +526,7 @@ mod tests {
     #[test]
     fn test_from_bitvec() {
         let bitvec = bitvec![1, 0, 1, 0, 1];
-        let deque = BitVecDeque::from_bitvec(bitvec);
+        let deque = BitVecDeque::from(bitvec);
 
         assert_eq!(deque.to_vec(), vec![true, false, true, false, true]);
     }
@@ -532,7 +534,7 @@ mod tests {
     #[test]
     fn test_to_bitvec() {
         let deque = BitVecDeque::from_bits([true, false, true, false]);
-        let bitvec = deque.to_bitvec();
+        let bitvec = BitVec::from(deque);
 
         assert_eq!(bitvec.len(), 4);
         assert_eq!(bitvec[0], true);

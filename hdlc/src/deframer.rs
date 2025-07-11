@@ -224,7 +224,7 @@ mod tests {
 
         handle.join().unwrap();
     }
-    
+
     #[test]
     fn frame_with_missing_end_flag() {
         let (tx, rx) = mpsc::channel::<Vec<bool>>();
