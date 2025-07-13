@@ -35,9 +35,8 @@ impl Deframer {
     pub fn run(&mut self) -> Vec<RawFrame> {
         let mut frames = Vec::new();
         while let Ok(new_bits) = self.reader.recv() {
-            // for testing purposes
             if new_bits.is_empty() {
-                break;
+                continue;
             }
 
             for bit in new_bits {
@@ -137,8 +136,7 @@ mod tests {
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
         tx.send(vec![false, true, true, false]).unwrap(); // garbage
 
-        tx.send(vec![]).unwrap(); // end signal for testing
-
+        drop(tx); // end signal for testing
         handle.join().unwrap();
     }
 
@@ -161,8 +159,8 @@ mod tests {
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
         tx.send(vec![true, true, true, false]).unwrap(); // content
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
-        tx.send(vec![]).unwrap();
 
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -186,8 +184,26 @@ mod tests {
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
         tx.send(vec![true, true, true, false]).unwrap(); // content
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+
+        drop(tx);
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn just_empty_bit_vecs() {
+        let (tx, rx) = mpsc::channel::<Vec<bool>>();
+
+        let handle = thread::spawn(move || {
+            let mut deframer = Deframer::new(rx);
+            let frames = deframer.run();
+            assert_eq!(frames.len(), 0);
+        });
+
+        tx.send(vec![]).unwrap();
+        tx.send(vec![]).unwrap();
         tx.send(vec![]).unwrap();
 
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -205,6 +221,7 @@ mod tests {
         tx.send(vec![false, true, true, false]).unwrap(); // garbage
         tx.send(vec![]).unwrap();
 
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -220,8 +237,8 @@ mod tests {
 
         tx.send(vec![true, false, true, false]).unwrap(); // content
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
-        tx.send(vec![]).unwrap();
 
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -237,8 +254,8 @@ mod tests {
 
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
         tx.send(vec![true, false, true, false]).unwrap(); // content
-        tx.send(vec![]).unwrap();
 
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -274,8 +291,7 @@ mod tests {
         tx.send(vec![false, false, true, true]).unwrap();
         tx.send(FLAG_ARRAY.to_vec()).unwrap();
 
-        tx.send(vec![]).unwrap();
-
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -313,8 +329,7 @@ mod tests {
         tx.send(vec![false, false, true, true]).unwrap();
         tx.send(FLAG_ARRAY.to_vec()).unwrap();
 
-        tx.send(vec![]).unwrap();
-
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -354,8 +369,8 @@ mod tests {
         tx.send(FLAG_ARRAY.to_vec()).unwrap();
 
         tx.send(vec![false, true, true, false]).unwrap(); // garbage
-        tx.send(vec![]).unwrap();
 
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -380,12 +395,12 @@ mod tests {
         tx.send(vec![false, true, true, true]).unwrap(); // garbage
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
+        tx.send(vec![]).unwrap();
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
         tx.send(vec![false, true, true, false]).unwrap(); // garbage
 
-        tx.send(vec![]).unwrap(); // end signal for testing
-
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -410,8 +425,8 @@ mod tests {
         tx.send(vec![true, true, true, false]).unwrap(); // content
         tx.send(FLAG_ARRAY[..2].to_vec()).unwrap(); // first half of sync
         tx.send(FLAG_ARRAY[2..].to_vec()).unwrap(); // second half of sync
-        tx.send(vec![]).unwrap();
 
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -438,8 +453,8 @@ mod tests {
             tx.send(vec![false]).unwrap();
         }
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
-        tx.send(vec![]).unwrap();
 
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -460,8 +475,8 @@ mod tests {
 
         // not enough space in buffer (7 bits) for closing flag
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
-        tx.send(vec![]).unwrap();
 
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -486,8 +501,8 @@ mod tests {
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
         tx.send(vec![true, true, true, false]).unwrap();
         tx.send(FLAG_ARRAY.to_vec()).unwrap(); // sync
-        tx.send(vec![]).unwrap();
 
+        drop(tx);
         handle.join().unwrap();
     }
 
@@ -521,8 +536,8 @@ mod tests {
         tx.send(FLAG_ARRAY.to_vec()).unwrap();
         tx.send(vec![true, true, true, false]).unwrap();
         tx.send(FLAG_ARRAY.to_vec()).unwrap();
-        tx.send(vec![]).unwrap();
 
+        drop(tx);
         handle.join().unwrap();
     }
 }
