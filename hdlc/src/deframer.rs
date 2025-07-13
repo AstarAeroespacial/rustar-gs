@@ -11,7 +11,7 @@ pub enum ParserState {
     SearchingEndSync,
 }
 
-struct Deframer {
+pub struct Deframer {
     reader: mpsc::Receiver<Vec<bool>>,
     buffer: BitVecDeque,
     idx: usize, // it's an index, or offset, from the 0th element of the buffer
