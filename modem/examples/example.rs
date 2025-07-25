@@ -13,7 +13,8 @@ fn main() {
         writer,
         "afsk_demod_headless",
         Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("gnuradio/python")),
-    );
+    )
+    .unwrap();
 
     sleep(Duration::from_millis(500)); // magic sleep. TODO: small handshake to ensure the flowgraph is ready.
 

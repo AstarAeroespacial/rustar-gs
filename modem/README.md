@@ -1,4 +1,10 @@
-Demodulation executes GNU radio flowgraphs under the hood. A Python virtual environment with conda is created with the required stuff.
+Demodulation executes GNU Radio flowgraphs under the hood. The host system must have a working GNU Radio installation, either on the global scope or in a virtual environment.
+
+I will now provide instructions for setting up GNU Radio in a virtual environment, both on Linux and Windows.
+
+# On Windows
+
+A Python virtual environment with conda is created with the required stuff.
 
 Guide: https://wiki.gnuradio.org/index.php/CondaInstall
 
@@ -20,8 +26,14 @@ Then install GNU Radio:
 conda install gnuradio
 ```
 
-TODO: is it necessary to install all gnu radio? Tbd.
+TODO: is it necessary to install all of GNU Radio? Maybe we can avoid having to install all the GUI stuff.
 
-I will provide some script or something to automate this in the future, or make it a crate that wraps gnu radio flowgraphs. Or maybe a Dockerfile for production use. For now, it works.
+# On Linux
+TODO: write instructions for installing GNU Radio in a virtual environment on Linux.
 
-The above was tested on Windows. Should be easier on Linux tho.
+NOTE: I will provide some script or something to automate this in the future, or make it a crate that wraps GNU Radio flowgraphs. Or maybe a Dockerfile for production use. For now, it works.
+
+
+# Adding flowgraphs
+
+For now, the demodulator is hardcoded to send the IQ samples to a ZMQ socket at address `tcp://127.0.0.1:5556`, and read the resulting bits from `tcp://127.0.0.1:5557`. This is temporary, the idea is to create a better abstraction over the execution of flowgraphs.
