@@ -1,0 +1,19 @@
+# API Server Configuration
+
+[server]
+host = "127.0.0.1"
+port = 8080
+
+[database]
+url = "postgresql://username:password@localhost:5432/database_name"
+pool_size = 10
+
+[message_broker]
+url = "amqp://username:password@localhost:5672"
+queue_name = "api_queue_2"
+exchange_name = "api_exchange"
+
+[services]
+# Placeholder URLs for external services
+external_api_url = "https://api.example.com"
+notification_service_url = "https://notifications.example.com" 

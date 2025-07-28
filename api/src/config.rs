@@ -1,0 +1,53 @@
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ServerConfig {
+    pub host: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct DatabaseConfig {
+    pub url: String,
+    pub pool_size: u32,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct MessageBrokerConfig {
+    pub url: String,
+    pub queue_name: String,
+    pub exchange_name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ServicesConfig {
+    pub external_api_url: String,
+    pub notification_service_url: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Config {
+    pub server: ServerConfig,
+    pub database: DatabaseConfig,
+    pub message_broker: MessageBrokerConfig,
+    pub services: ServicesConfig,
+}
+
+impl Config {
+    pub fn load() -> Result<Self, config::ConfigError> {
+        let settings = config::Config::builder()
+            .add_source(config::File::with_name("config"))
+            .add_source(config::Environment::with_prefix("API"))
+            .build()?;
+
+        settings.try_deserialize()
+    }
+
+    pub fn server_address(&self) -> String {
+        format!("{}:{}", self.server.host, self.server.port)
+    }
+}
+
+// Type alias for shared configuration
+pub type SharedConfig = Arc<Config>; 
