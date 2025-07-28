@@ -1,0 +1,3 @@
+[workspace]
+members = ["tracking", "hdlc"]
+resolver = "3"
