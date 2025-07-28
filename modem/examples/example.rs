@@ -8,11 +8,15 @@ fn main() {
     let reader = File::open("./out_upsampled_40.txt").unwrap();
     let writer = File::create("./demodulated_bits.txt").unwrap();
 
+    let flowgraph_name = "afsk_demod_headless";
+    let here = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
     let demod = Demodulator::build(
         reader,
         writer,
-        "afsk_demod_headless",
-        Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("gnuradio/python")),
+        here.join("flowgraphs")
+            .join(format!("{}.py", flowgraph_name)),
+        Some(here.join("gnuradio/python")),
     )
     .unwrap();
 

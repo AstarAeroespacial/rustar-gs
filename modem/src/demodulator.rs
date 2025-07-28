@@ -32,6 +32,7 @@ const BATCH_SIZE: usize = 2; // number of samples per batch received from gr
 // TODO: improve error reporting
 #[derive(Debug)]
 pub enum DemodulatorError {
+    NoSuchFlowgraph,
     GnuRadioProcess,
 }
 
@@ -42,20 +43,20 @@ impl<R: Read + Send + 'static, W: Write + Send + 'static> Demodulator<R, W> {
     pub fn build(
         reader: R,
         writer: W,
-        flowgraph: impl AsRef<str>,
-        python_path: Option<impl AsRef<Path>>, // TODO: does it NEED to be a pathbuf??
+        flowgraph_path: impl AsRef<Path>,
+        python_path: Option<impl AsRef<Path>>,
     ) -> Result<Self, DemodulatorError> {
         // Use `python_path`, or whatever `python` is in `$PATH`.
         let python = python_path
             .map(|p| p.as_ref().to_path_buf())
             .unwrap_or_else(|| PathBuf::from("python"));
 
-        let flowgraph = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("flowgraphs")
-            .join(format!("{}.py", flowgraph.as_ref()));
+        if !flowgraph_path.as_ref().exists() {
+            return Err(DemodulatorError::NoSuchFlowgraph);
+        }
 
         let child = Command::new(&python)
-            .arg(&flowgraph)
+            .arg(&flowgraph_path.as_ref())
             .spawn()
             .map_err(|_| DemodulatorError::GnuRadioProcess)?;
 
