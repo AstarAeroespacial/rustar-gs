@@ -21,18 +21,12 @@ pub struct MessageBrokerConfig {
     pub exchange_name: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
-pub struct ServicesConfig {
-    pub external_api_url: String,
-    pub notification_service_url: String,
-}
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub struct Config {
     pub server: ServerConfig,
     pub database: DatabaseConfig,
     pub message_broker: MessageBrokerConfig,
-    pub services: ServicesConfig,
 }
 
 impl Config {

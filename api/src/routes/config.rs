@@ -17,7 +17,6 @@ pub async fn get_config(config: web::Data<SharedConfig>) -> Result<impl Responde
         server: config.server.clone(),
         database: config.database.clone(),
         message_broker: config.message_broker.clone(),
-        services: config.services.clone(),
     };
     Ok(actix_web::web::Json(response))
 } 

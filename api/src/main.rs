@@ -9,7 +9,7 @@ mod repository;
 mod services;
 mod database;
 
-use config::{Config, ServerConfig, DatabaseConfig, MessageBrokerConfig, ServicesConfig};
+use config::{Config, ServerConfig, DatabaseConfig, MessageBrokerConfig};
 use routes::{telemetry::{get_latest_telemetry, get_historic_telemetry}, config::get_config};
 use models::{requests::{HistoricTelemetryRequest, LatestTelemetryRequest}, responses::*};
 use repository::{telemetry::SqliteTelemetryRepository};
@@ -27,7 +27,6 @@ use database::create_pool;
         ServerConfig,
         DatabaseConfig,
         MessageBrokerConfig,
-        ServicesConfig
     )),
     tags(
         (name = "API", description = "Main API endpoints"),

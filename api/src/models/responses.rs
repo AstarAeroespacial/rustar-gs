@@ -17,5 +17,4 @@ pub struct ConfigResponse {
     pub server: crate::config::ServerConfig,
     pub database: crate::config::DatabaseConfig,
     pub message_broker: crate::config::MessageBrokerConfig,
-    pub services: crate::config::ServicesConfig,
 }

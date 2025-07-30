@@ -1,5 +1,7 @@
 # Rust API Server
 
+TODO: This file needs a rewrite
+
 A Rust API server built with Actix-web that includes configuration management, database integration, and OpenAPI documentation.
 
 ## Architecture
@@ -29,7 +31,7 @@ The server uses a `config.toml` file for configuration. The following sections a
 - `port`: Server port (default: 8080)
 
 ### Database Configuration
-- `url`: Database connection string (default: sqlite:./data/telemetry.db)
+- `url`: Database connection string (default: sqlite:./.data/telemetry.db for local development)
 - `pool_size`: Connection pool size
 
 ### Message Broker Configuration
@@ -37,9 +39,7 @@ The server uses a `config.toml` file for configuration. The following sections a
 - `queue_name`: Queue name for receiving messages
 - `exchange_name`: Exchange name for publishing messages
 
-### Services Configuration
-- `external_api_url`: External API service URL
-- `notification_service_url`: Notification service URL
+Currently unused
 
 ## Environment Variables
 
@@ -53,22 +53,15 @@ export API_DATABASE_URL=sqlite:./data/telemetry.db
 
 ## Database Setup
 
-The application uses SQLite by default, but the repository pattern makes it easy to switch to other databases.
+The application uses SQLite by default, but the repository pattern makes it easy to switch to other SQL databases.
 
-### Initial Setup
+### Initial Database Setup
 
-1. The database will be created automatically when you first run the application
-2. Migrations will be applied automatically
-
-### Seeding Test Data
-
-To add test telemetry data to the database:
-
-```bash
-cargo run --bin seed_data
-```
-
-This will create 100 telemetry records spanning the last 24 hours.
+1. Install [sqlx cli tool](https://github.com/launchbadge/sqlx/blob/main/sqlx-cli/README.md) by running `cargo install sqlx-cli`
+2. Add the database path by running `export DATABASE_URL=sqlite:./.data/telemetry.db` (or whichever path you prefer)
+3. Initialize the database by running `sqlx database create`
+4. Run migrations with `sqlx migrate run`
+5. You can generate test data with `cargo run --bin seed_data`
 
 ## API Endpoints
 

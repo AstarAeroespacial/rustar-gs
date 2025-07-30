@@ -12,8 +12,3 @@ pool_size = 10
 url = "amqp://username:password@localhost:5672"
 queue_name = "api_queue"
 exchange_name = "api_exchange"
-
-[services]
-# Placeholder URLs for external services
-external_api_url = "https://api.example.com"
-notification_service_url = "https://notifications.example.com" 
