@@ -7,7 +7,10 @@ use crate::models::{responses::TelemetryResponse, requests::TelemetryRequest};
     get,
     path = "/api/telemetry",
     params(
-        ("req" = TelemetryRequest, Query, description = "Telemetry request", explode = true)
+        ("startTime" = Option<i64>, Query, description = "Start timestamp", example = 1640995200),
+        ("endTime" = Option<i64>, Query, description = "End timestamp", example = 1640998800),
+        ("pageSize" = Option<i32>, Query, description = "Number of items per page", example = 10),
+        ("pageNumber" = Option<i32>, Query, description = "Page number", example = 1)
     ),
     responses(
         (status = 200, description = "Success", body = TelemetryResponse),
