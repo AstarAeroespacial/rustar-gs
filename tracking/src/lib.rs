@@ -1,7 +1,8 @@
 use predict_rs::{
     consts::{DEG_TO_RAD, RAD_TO_DEG},
-    observer, orbit,
-    predict::PredictObserver,
+    observer::{self, get_passes},
+    orbit,
+    predict::{ObserverElements, Pass, PredictObserver},
 };
 
 pub type Degrees = f64;
@@ -77,5 +78,20 @@ impl<'a> Tracker<'a> {
             azimuth: observation.azimuth * RAD_TO_DEG,
             elevation: observation.elevation * RAD_TO_DEG,
         })
+    }
+
+    pub fn next_pass(&self, start_utc: f64) -> Option<Pass> {
+        let oe = ObserverElements {
+            observer: &self.observer,
+            elements: self.elements,
+            constants: &self.constants,
+        };
+
+        // Buscar pases en las próximas 6 horas
+        let passes = get_passes(&oe, start_utc, start_utc + 21600.0).ok()?;
+
+        dbg!(passes.passes.len());
+
+        passes.passes.into_iter().next()
     }
 }
