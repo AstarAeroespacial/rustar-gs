@@ -1,16 +1,6 @@
 use actix_web::{get, Responder, Result, web};
-use serde::Serialize;
-use utoipa::ToSchema;
 use crate::config::SharedConfig;
-
-#[derive(ToSchema)]
-#[derive(Debug, Serialize)]
-pub struct ConfigResponse {
-    server: crate::config::ServerConfig,
-    database: crate::config::DatabaseConfig,
-    message_broker: crate::config::MessageBrokerConfig,
-    services: crate::config::ServicesConfig,
-}
+use crate::models::responses::ConfigResponse;
 
 /// Configuration endpoint
 #[utoipa::path(

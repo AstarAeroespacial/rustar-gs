@@ -1,0 +1,17 @@
+use serde::Deserialize;
+use utoipa::{IntoParams, ToSchema};
+
+#[derive(ToSchema, IntoParams)]
+#[derive(Debug, Deserialize)]
+#[into_params(style = Form)]
+#[serde(rename_all = "camelCase")]
+pub struct TelemetryRequest {
+    #[param(example = 1640995200)]
+    pub start_time: Option<i64>,
+    #[param(example = 1640998800)]
+    pub end_time: Option<i64>,
+    #[param(example = 10)]
+    pub page_size: Option<i32>,
+    #[param(example = 1)]
+    pub page_number: Option<i32>
+}

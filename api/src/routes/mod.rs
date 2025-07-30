@@ -1,5 +1,2 @@
-pub mod api;
+pub mod telemetry;
 pub mod config;
-
-pub use api::*;
-pub use config::*; 
