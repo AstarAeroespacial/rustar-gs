@@ -16,18 +16,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..100 {
         let telemetry = (
             Uuid::new_v4().to_string(),
-            current_time,
+            current_time.timestamp(),
             20.0 + (i as f64 * 0.1), // Varying temperature
             12.0 + (i as f64 * 0.01), // Varying voltage
             1.0 + (i as f64 * 0.005), // Varying current
             50 + (i % 20), // Varying battery level
-            Utc::now(),
         );
         
         sqlx::query(
             r#"
-            INSERT INTO telemetry (id, time, temperature, voltage, current, battery_level, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO telemetry (id, timestamp, temperature, voltage, current, battery_level)
+            VALUES (?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(telemetry.0)
@@ -36,7 +35,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .bind(telemetry.3)
         .bind(telemetry.4)
         .bind(telemetry.5)
-        .bind(telemetry.6)
         .execute(&pool)
         .await?;
         

@@ -1,6 +1,7 @@
 use actix_web::{App, HttpServer, web};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+use sqlx::any::install_default_drivers;
 
 mod config;
 mod routes;
@@ -12,7 +13,7 @@ mod database;
 use config::{Config, ServerConfig, DatabaseConfig, MessageBrokerConfig};
 use routes::{telemetry::{get_latest_telemetry, get_historic_telemetry}, config::get_config};
 use models::{requests::{HistoricTelemetryRequest, LatestTelemetryRequest}, responses::*};
-use repository::{telemetry::SqliteTelemetryRepository};
+use repository::{telemetry::TelemetryRepository};
 use services::telemetry_service::TelemetryService;
 use database::create_pool;
     
@@ -50,12 +51,16 @@ async fn main() -> std::io::Result<()> {
     let server_address = shared_config.server_address();
     
     // Create database pool
+    println!("Creating database pool...");
+
+    install_default_drivers();
+    
     let pool = create_pool(&shared_config.database.url)
         .await
         .expect("Failed to create database pool");
     
     // Create repository and service
-    let repository = SqliteTelemetryRepository::new(pool);
+    let repository = TelemetryRepository::new(pool);
     let service = TelemetryService::new(repository);
     let shared_service = std::sync::Arc::new(service);
     

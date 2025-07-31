@@ -2,7 +2,6 @@ use actix_web::{get, Responder, Result, web};
 use crate::models::{requests::{HistoricTelemetryRequest, LatestTelemetryRequest}};
 use crate::services::telemetry_service::TelemetryService;
 use log::error;
-use crate::repository::telemetry::SqliteTelemetryRepository;
 use std::sync::Arc;
 
 /// Latest telemetry endpoint
@@ -22,7 +21,7 @@ use std::sync::Arc;
 #[get("/api/telemetry/latest")]
 pub async fn get_latest_telemetry(
     req: web::Query<LatestTelemetryRequest>,
-    service: web::Data<Arc<TelemetryService<SqliteTelemetryRepository>>>
+    service: web::Data<Arc<TelemetryService>>
 ) -> Result<impl Responder> {
     let req = req.into_inner();
     let amount = req.amount.unwrap_or(10);
@@ -54,7 +53,7 @@ pub async fn get_latest_telemetry(
 #[get("/api/telemetry/history")]
 pub async fn get_historic_telemetry(
     req: web::Query<HistoricTelemetryRequest>,
-    service: web::Data<Arc<TelemetryService<SqliteTelemetryRepository>>>
+    service: web::Data<Arc<TelemetryService>>
 ) -> Result<impl Responder> {
     let req = req.into_inner();
     
