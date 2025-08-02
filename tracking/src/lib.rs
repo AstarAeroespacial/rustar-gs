@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use predict_rs::{
     consts::{DEG_TO_RAD, RAD_TO_DEG},
     observer::{self, get_passes},
@@ -80,15 +82,16 @@ impl<'a> Tracker<'a> {
         })
     }
 
-    pub fn next_pass(&self, start_utc: f64) -> Option<Pass> {
+    pub fn next_pass(&self, start_utc: f64, stop: Duration) -> Option<Pass> {
         let oe = ObserverElements {
             observer: &self.observer,
             elements: self.elements,
             constants: &self.constants,
         };
 
-        // Buscar pases en las próximas 6 horas
-        let passes = get_passes(&oe, start_utc, start_utc + 21600.0).ok()?;
+        let stop_utc = start_utc + stop.as_secs_f64();
+
+        let passes = get_passes(&oe, start_utc, stop_utc).ok()?;
 
         dbg!(passes.passes.len());
 
