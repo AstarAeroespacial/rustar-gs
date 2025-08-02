@@ -37,3 +37,5 @@ NOTE: I will provide some script or something to automate this in the future, or
 # Adding flowgraphs
 
 For now, the demodulator is hardcoded to send the IQ samples to a ZMQ socket at address `tcp://127.0.0.1:5556`, and read the resulting bits from `tcp://127.0.0.1:5557`. This is temporary, the idea is to create a better abstraction over the execution of flowgraphs.
+
+WARNING: Remember to select "No GUI" in the "Generate Options" settings for the flowgraph.
