@@ -1,4 +1,5 @@
 use crate::bitvecdeque::BitVecDeque;
+use crate::frame::Frame;
 use std::sync::mpsc;
 
 // Typical HDLC frames are up to 260 bytes (2080 bits)
@@ -18,9 +19,6 @@ pub struct Deframer {
     state: ParserState,
 }
 
-#[derive(Debug, PartialEq)]
-struct RawFrame(Vec<bool>); // temporary, to be deleted when Frame is implemented
-
 impl Deframer {
     pub fn new(rx: mpsc::Receiver<Vec<bool>>) -> Self {
         Self {
@@ -32,7 +30,7 @@ impl Deframer {
     }
 
     // the function return is temporary for testing purposes
-    pub fn run(&mut self) -> Vec<RawFrame> {
+    pub fn run(&mut self) -> Vec<Frame> {
         let mut frames = Vec::new();
         while let Ok(new_bits) = self.reader.recv() {
             if new_bits.is_empty() {
@@ -55,7 +53,7 @@ impl Deframer {
         frames
     }
 
-    fn find_frames(&mut self) -> Vec<RawFrame> {
+    fn find_frames(&mut self) -> Vec<Frame> {
         let mut frames = Vec::new();
 
         while self.buffer.len() - self.idx >= 8 {
@@ -82,9 +80,9 @@ impl Deframer {
                         // drain the whole frame between syncs
                         let frame_bits = self.buffer.drain_range(0, self.idx + 8);
 
-                        // if let Some(frame) = Frame::new(frame_bits); // bit destuffing should be done here
-                        //     frames.push(frame);
-                        frames.push(RawFrame(frame_bits));
+                        if let Some(frame) = Frame::try_from(frame_bits) {
+                            frames.push(frame);
+                        }
 
                         self.idx = 0;
                         self.state = ParserState::SearchingStartSync
@@ -275,7 +273,6 @@ mod tests {
             expected_frame2_bits.extend_from_slice(&[false, false, true, true]);
             expected_frame2_bits.extend_from_slice(&FLAG_ARRAY);
 
-            dbg!(&frames);
             assert_eq!(frames.len(), 2);
             assert_eq!(frames[0], RawFrame(expected_frame1_bits));
             assert_eq!(frames[1], RawFrame(expected_frame2_bits));
