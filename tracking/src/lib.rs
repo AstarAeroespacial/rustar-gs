@@ -71,8 +71,8 @@ impl<'a> Tracker<'a> {
         })
     }
 
-    pub fn track(&self, at: i64) -> Result<Observation, TrackerError> {
-        let orbit = orbit::predict_orbit(self.elements, &self.constants, at as f64)
+    pub fn track(&self, at: DateTime<Utc>) -> Result<Observation, TrackerError> {
+        let orbit = orbit::predict_orbit(self.elements, &self.constants, at.timestamp() as f64)
             .map_err(TrackerError::OrbitPredictionError)?;
 
         let observation = observer::predict_observe_orbit(&self.observer, &orbit);

@@ -17,7 +17,7 @@ fn main() {
 
     let now = chrono::Utc::now();
 
-    let observation = tracker.track(now.timestamp()).unwrap();
+    let observation = tracker.track(now).unwrap();
 
     if let Some(next_pass) = tracker.next_pass(now, Duration::from_secs_f64(3600.0 * 6.0)) {
         if let (Some(aos), Some(los)) = (next_pass.aos.as_ref(), next_pass.los.as_ref()) {
