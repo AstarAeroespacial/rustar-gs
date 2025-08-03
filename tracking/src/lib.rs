@@ -11,6 +11,7 @@ use predict_rs::{
 pub type Degrees = f64;
 pub type Meters = f64;
 
+/// The observer is the location of the ground station.
 pub struct Observer {
     /// Ground station latitude, in degrees.
     latitude: Degrees,
@@ -45,6 +46,7 @@ pub enum TrackerError {
     OrbitPredictionError(orbit::OrbitPredictionError),
 }
 
+/// The tracker is used to predict the position of a satellite, given its orbital elements, relative to the ground station.
 pub struct Tracker<'a> {
     observer: PredictObserver,
     elements: &'a sgp4::Elements,
@@ -52,6 +54,7 @@ pub struct Tracker<'a> {
 }
 
 impl<'a> Tracker<'a> {
+    /// Create a new tracker given the observer and the satellite's orbital elements.
     pub fn new(observer: &Observer, elements: &'a sgp4::Elements) -> Result<Self, TrackerError> {
         let constants =
             sgp4::Constants::from_elements(elements).map_err(TrackerError::ElementsError)?;
@@ -71,6 +74,7 @@ impl<'a> Tracker<'a> {
         })
     }
 
+    /// Predict the observation of the satellite at a given time.
     pub fn track(&self, at: DateTime<Utc>) -> Result<Observation, TrackerError> {
         let orbit = orbit::predict_orbit(self.elements, &self.constants, at.timestamp() as f64)
             .map_err(TrackerError::OrbitPredictionError)?;
@@ -83,6 +87,7 @@ impl<'a> Tracker<'a> {
         })
     }
 
+    /// Predict the next pass of the satellite over the ground station, starting from a given time and within a specified time window.
     pub fn next_pass(&self, from: DateTime<Utc>, window: Duration) -> Option<Pass> {
         let oe = ObserverElements {
             observer: &self.observer,
@@ -94,8 +99,6 @@ impl<'a> Tracker<'a> {
         let stop_utc = start_utc + window.as_secs();
 
         let passes = get_passes(&oe, start_utc as f64, stop_utc as f64).ok()?;
-
-        dbg!(passes.passes.len());
 
         passes.passes.into_iter().next()
     }
