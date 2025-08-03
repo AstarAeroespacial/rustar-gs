@@ -21,8 +21,9 @@ fn main() {
         let mut controller = AntennaController::new(&sender_port, baud_rate)
             .expect("Failed to open serial port (sender)");
 
+        // Ejemplo de envío con los nuevos argumentos
         controller
-            .send(b"Hello from sender!\n")
+            .send(123.4, 45.6, "ISS", 145800)
             .expect("Failed to send data");
 
         println!("Sender: Message sent");
@@ -30,12 +31,12 @@ fn main() {
 
     // Receiver thread
     let receiver = thread::spawn(move || {
-        let controller = AntennaController::new(&receiver_port, baud_rate)
+        let mut controller = AntennaController::new(&receiver_port, baud_rate)
             .expect("Failed to open serial port (receiver)");
 
         thread::sleep(Duration::from_millis(500));
 
-        let mut reader = BufReader::new(controller.port);
+        let mut reader = BufReader::new(controller.port.as_mut());
 
         let mut line = String::new();
 

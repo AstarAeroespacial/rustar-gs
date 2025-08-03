@@ -15,8 +15,18 @@ impl AntennaController {
         Ok(AntennaController { port })
     }
 
-    /// Sends data to the antenna controller.
-    pub fn send(&mut self, data: &[u8]) -> io::Result<()> {
-        self.port.write_all(data)
+    /// Sends data to the antenna.
+    pub fn send(
+        &mut self,
+        azimuth: f64,
+        elevation: f64,
+        sat_name: &str,
+        downlink_number: i64,
+    ) -> io::Result<()> {
+        let data = format!(
+            "SN={},AZ={:.1},EL={:.1},DN={}",
+            sat_name, azimuth, elevation, downlink_number
+        );
+        self.port.write_all(data.as_bytes())
     }
 }
