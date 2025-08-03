@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use chrono::{DateTime, Utc};
 use predict_rs::{
     consts::{DEG_TO_RAD, RAD_TO_DEG},
     observer::{self, get_passes},
@@ -82,16 +83,17 @@ impl<'a> Tracker<'a> {
         })
     }
 
-    pub fn next_pass(&self, start_utc: f64, stop: Duration) -> Option<Pass> {
+    pub fn next_pass(&self, from: DateTime<Utc>, window: Duration) -> Option<Pass> {
         let oe = ObserverElements {
             observer: &self.observer,
             elements: self.elements,
             constants: &self.constants,
         };
 
-        let stop_utc = start_utc + stop.as_secs_f64();
+        let start_utc = from.timestamp() as u64;
+        let stop_utc = start_utc + window.as_secs();
 
-        let passes = get_passes(&oe, start_utc, stop_utc).ok()?;
+        let passes = get_passes(&oe, start_utc as f64, stop_utc as f64).ok()?;
 
         dbg!(passes.passes.len());
 
