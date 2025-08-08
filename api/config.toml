@@ -1,0 +1,14 @@
+# API Server Configuration
+
+[server]
+host = "127.0.0.1"
+port = 9090
+
+[database]
+url = "sqlite:./.data/telemetry.db"
+pool_size = 10
+
+[message_broker]
+host = "127.0.0.1"
+port = 8888
+keep_alive = 60

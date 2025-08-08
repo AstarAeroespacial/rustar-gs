@@ -13,3 +13,8 @@
 # Added by cargo
 **/target
 **/Cargo.lock
+
+.env
+
+# local development database
+api/.data
