@@ -9,6 +9,6 @@ url = "sqlite:./.data/telemetry.db"
 pool_size = 10
 
 [message_broker]
-url = "amqp://username:password@localhost:5672"
-queue_name = "api_queue"
-exchange_name = "api_exchange"
+host = "127.0.0.1"
+port = 8888
+keep_alive = 60

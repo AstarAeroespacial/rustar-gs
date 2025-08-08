@@ -16,9 +16,9 @@ pub struct DatabaseConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub struct MessageBrokerConfig {
-    pub url: String,
-    pub queue_name: String,
-    pub exchange_name: String,
+    pub host: String,
+    pub port: u16,
+    pub keep_alive: u32,
 }
 
 
