@@ -139,18 +139,12 @@ impl Frame {
 
         // Extract address
         let address_bits = &content_bits[idx..idx + 8];
-        let address = address_bits
-            .iter()
-            .enumerate()
-            .fold(0u8, |acc, (i, &b)| acc | ((b as u8) << i)); // TODO: check &[Bit] to u8 conversion
+        let address = bits_to_byte(address_bits);
         idx += 8;
 
         // Extract control
         let control_bits = &content_bits[idx..idx + 8];
-        let control_byte = control_bits
-            .iter()
-            .enumerate()
-            .fold(0u8, |acc, (i, &b)| acc | ((b as u8) << i)); // TODO: check &[Bit] to u8 conversion
+        let control_byte = bits_to_byte(control_bits);
         let control = Control::try_from(control_byte).ok()?;
         idx += 8;
 
@@ -163,22 +157,13 @@ impl Frame {
 
         // Extract FCS (last 16 bits)
         let fcs_bits = &content_bits[content_bits.len() - 16..];
-        let fcs_val = fcs_bits
-            .iter()
-            .enumerate()
-            .fold(0u16, |acc, (i, &b)| acc | ((b as u16) << i)); // TODO: check &[Bit] to u16 conversion
+        let fcs_val = bits_to_u16(fcs_bits);
         let fcs = FrameCheckingSequence(fcs_val);
 
-        // Recalculate FCS from address, control, info
-        // TODO: move this to a separate function
-        let mut data = Vec::new();
-        data.push(address);
-        data.push(control_byte);
+        // Convert info_bits to bytes
         let info_bytes = if info_bits.is_empty() {
             None
         } else {
-            // Convert info_bits to bytes
-            // TODO: check this conversion
             let mut bytes = Vec::new();
             for chunk in info_bits.chunks(8) {
                 let mut byte = 0u8;
@@ -189,12 +174,8 @@ impl Frame {
             }
             Some(bytes)
         };
-        if let Some(ref payload) = info_bytes {
-            data.extend(payload);
-        }
-        let mut crc = CRCu16::crc16ccitt_false();
-        crc.digest(&data);
-        let calc_fcs = crc.get_crc();
+
+        let calc_fcs = Self::calculate_fcs(address, control_byte, &info_bytes);
         if calc_fcs != fcs.0 {
             return None;
         }
@@ -205,11 +186,6 @@ impl Frame {
             info: info_bytes,
             fcs,
         })
-    }
-    
-    /// Helper to convert a Byte to a Vec<Bit>, Least Significant Bit first
-    fn byte_to_bits(byte: Byte) -> Vec<Bit> {
-        (0..8).map(|i| (byte & (1 << i)) != 0).collect()
     }
 
     /// Performs HDLC bit stuffing: After five consecutive 1s, insert a 0.
@@ -258,6 +234,34 @@ impl Frame {
 
         bits
     }
+
+    /// Calculates the FCS (CRC-16-CCITT-FALSE) for the given address, control, and info bytes.
+    fn calculate_fcs(address: Byte, control_byte: Byte, info_bytes: &Option<Vec<Byte>>) -> u16 {
+        let mut data = Vec::new();
+        data.push(address);
+        data.push(control_byte);
+        if let Some(payload) = info_bytes {
+            data.extend(payload);
+        }
+        let mut crc = CRCu16::crc16ccitt_false();
+        crc.digest(&data);
+        crc.get_crc()
+    }
+}
+
+/// Helper to convert a Byte to a Vec<Bit>, Least Significant Bit first
+fn byte_to_bits(byte: Byte) -> Vec<Bit> {
+    (0..8).map(|i| (byte & (1 << i)) != 0).collect()
+}
+
+/// Converts a slice of bits (LSB first) to a byte
+fn bits_to_byte(bits: &[Bit]) -> u8 {
+    bits.iter().enumerate().fold(0u8, |acc, (i, &b)| acc | ((b as u8) << i))
+}
+
+/// Converts a slice of bits (LSB first) to a u16
+fn bits_to_u16(bits: &[Bit]) -> u16 {
+    bits.iter().enumerate().fold(0u16, |acc, (i, &b)| acc | ((b as u16) << i))
 }
 
 #[cfg(test)]

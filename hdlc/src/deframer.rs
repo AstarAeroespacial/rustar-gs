@@ -47,7 +47,7 @@ impl Deframer {
             //     .into_iter()
             //     .map(|frame| Packet::new(frame))
             //     .collect::<Vec<Packet>>();
-            // send these packets to the web app?
+            // Publish these packets to a MQTT topic
             // Packet should be an interface so multiple packet types can be implemented
         }
         frames
