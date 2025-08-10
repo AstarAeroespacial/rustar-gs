@@ -214,11 +214,11 @@ impl Frame {
         let mut raw_bits = Vec::new();
 
         // Add fields without bit stuffing
-        raw_bits.extend(Self::byte_to_bits(self.address));
-        raw_bits.extend(Self::byte_to_bits(self.control.clone().into()));
+        raw_bits.extend(byte_to_bits(self.address));
+        raw_bits.extend(byte_to_bits(self.control.clone().into()));
         if let Some(info) = &self.info {
             for byte in info {
-                raw_bits.extend(Self::byte_to_bits(*byte));
+                raw_bits.extend(byte_to_bits(*byte));
             }
         }
         raw_bits.extend(self.fcs.to_bits());
@@ -228,9 +228,9 @@ impl Frame {
 
         // Build frame with flags
         let mut bits = Vec::new();
-        bits.extend(Self::byte_to_bits(FLAG));
+        bits.extend(byte_to_bits(FLAG));
         bits.extend(stuffed_bits);
-        bits.extend(Self::byte_to_bits(FLAG));
+        bits.extend(byte_to_bits(FLAG));
 
         bits
     }
@@ -256,12 +256,16 @@ fn byte_to_bits(byte: Byte) -> Vec<Bit> {
 
 /// Converts a slice of bits (LSB first) to a byte
 fn bits_to_byte(bits: &[Bit]) -> u8 {
-    bits.iter().enumerate().fold(0u8, |acc, (i, &b)| acc | ((b as u8) << i))
+    bits.iter()
+        .enumerate()
+        .fold(0u8, |acc, (i, &b)| acc | ((b as u8) << i))
 }
 
 /// Converts a slice of bits (LSB first) to a u16
 fn bits_to_u16(bits: &[Bit]) -> u16 {
-    bits.iter().enumerate().fold(0u16, |acc, (i, &b)| acc | ((b as u16) << i))
+    bits.iter()
+        .enumerate()
+        .fold(0u16, |acc, (i, &b)| acc | ((b as u16) << i))
 }
 
 #[cfg(test)]
