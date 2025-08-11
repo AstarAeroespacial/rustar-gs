@@ -52,14 +52,8 @@ impl Passes {
 async fn run(
     mut controller: Receiver<Command>,
     publisher: Sender<Message>,
-    mut passes: impl Iterator<Item = Instant>,
-    // mut passes: impl Stream<Item = Instant> + Unpin,
+    mut passes: impl Stream<Item = Instant> + Unpin,
 ) {
-    // Keep a pinned Sleep
-
-    let sleep = sleep_until(passes.next().unwrap());
-    tokio::pin!(sleep);
-
     loop {
         select! {
             // React to ground station commands.
@@ -73,13 +67,9 @@ async fn run(
                 });
             }
             // Wait for the pass.
-            _ = &mut sleep => {
-            // Some(_) = passes.next() => {
+            Some(_) = passes.next() => {
                 let handle = tokio::spawn(track());
                 handle.await.unwrap();
-
-                println!("Updating pass future...");
-                sleep.as_mut().reset(passes.next().unwrap());
             }
         }
     }
@@ -107,6 +97,7 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::stream;
     use tokio::sync::mpsc;
     use tokio_stream::{self, StreamExt};
 
@@ -119,7 +110,7 @@ mod tests {
         // stream.next()
 
         // Spawn the run function as a background task
-        tokio::spawn(run(rx_cmd, tx_msg, stream));
+        tokio::spawn(run(rx_cmd, tx_msg, stream::empty()));
 
         // Send a Ping command
         tx_cmd.send(Command::Ping).await.expect("send ping");
