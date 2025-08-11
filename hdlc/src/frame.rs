@@ -175,7 +175,7 @@ impl Frame {
             Some(bytes)
         };
 
-        let calc_fcs = Self::calculate_fcs(address, control_byte, &info_bytes);
+        let calc_fcs = calculate_fcs(address, control_byte, &info_bytes);
         if calc_fcs != fcs.0 {
             return None;
         }
@@ -186,27 +186,6 @@ impl Frame {
             info: info_bytes,
             fcs,
         })
-    }
-
-    /// Performs HDLC bit stuffing: After five consecutive 1s, insert a 0.
-    fn bit_stuff(bits_in: &[Bit]) -> Vec<Bit> {
-        let mut stuffed = Vec::new();
-        let mut ones_count = 0;
-
-        for &bit in bits_in {
-            stuffed.push(bit);
-            if bit {
-                ones_count += 1;
-                if ones_count == 5 {
-                    stuffed.push(false); // insert a 0
-                    ones_count = 0;
-                }
-            } else {
-                ones_count = 0;
-            }
-        }
-
-        stuffed
     }
 
     /// Converts a Frame into a vector of bits.
@@ -224,7 +203,7 @@ impl Frame {
         raw_bits.extend(self.fcs.to_bits());
 
         // Apply bit stuffing to the entire content between flags
-        let stuffed_bits = Self::bit_stuff(&raw_bits);
+        let stuffed_bits = bit_stuff(&raw_bits);
 
         // Build frame with flags
         let mut bits = Vec::new();
@@ -234,19 +213,39 @@ impl Frame {
 
         bits
     }
+}
 
-    /// Calculates the FCS (CRC-16-CCITT-FALSE) for the given address, control, and info bytes.
-    fn calculate_fcs(address: Byte, control_byte: Byte, info_bytes: &Option<Vec<Byte>>) -> u16 {
-        let mut data = Vec::new();
-        data.push(address);
-        data.push(control_byte);
-        if let Some(payload) = info_bytes {
-            data.extend(payload);
+/// Performs HDLC bit stuffing: After five consecutive 1s, insert a 0.
+fn bit_stuff(bits_in: &[Bit]) -> Vec<Bit> {
+    let mut stuffed = Vec::new();
+    let mut ones_count = 0;
+
+    for &bit in bits_in {
+        stuffed.push(bit);
+        if bit {
+            ones_count += 1;
+            if ones_count == 5 {
+                stuffed.push(false); // insert a 0
+                ones_count = 0;
+            }
+        } else {
+            ones_count = 0;
         }
-        let mut crc = CRCu16::crc16ccitt_false();
-        crc.digest(&data);
-        crc.get_crc()
     }
+    stuffed
+}
+
+/// Calculates the FCS (CRC-16-CCITT-FALSE) for the given address, control, and info bytes.
+fn calculate_fcs(address: Byte, control_byte: Byte, info_bytes: &Option<Vec<Byte>>) -> u16 {
+    let mut data = Vec::new();
+    data.push(address);
+    data.push(control_byte);
+    if let Some(payload) = info_bytes {
+        data.extend(payload);
+    }
+    let mut crc = CRCu16::crc16ccitt_false();
+    crc.digest(&data);
+    crc.get_crc()
 }
 
 /// Helper to convert a Byte to a Vec<Bit>, Least Significant Bit first

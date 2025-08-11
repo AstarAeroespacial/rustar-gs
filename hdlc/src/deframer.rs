@@ -103,7 +103,6 @@ impl Deframer {
         }
         frames
     }
-
 }
 
 fn deframe(frames: Vec<Frame>) -> Vec<TelemetryPacket> {
