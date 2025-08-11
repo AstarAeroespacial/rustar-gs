@@ -43,15 +43,7 @@ impl Deframer {
             }
 
             let new_frames = self.find_frames();
-
-            let _packets = new_frames
-                .into_iter()
-                .filter_map(|frame| {
-                    frame
-                        .info
-                        .and_then(|info| TelemetryPacket::try_from(info).ok())
-                })
-                .collect::<Vec<TelemetryPacket>>();
+            let _packets = deframe(new_frames);
 
             // Publish these packets to a MQTT topic
             // Packet should be an interface so multiple packet types can be implemented
@@ -111,6 +103,18 @@ impl Deframer {
         }
         frames
     }
+
+}
+
+fn deframe(frames: Vec<Frame>) -> Vec<TelemetryPacket> {
+    frames
+        .into_iter()
+        .filter_map(|frame| {
+            frame
+                .info
+                .and_then(|info| TelemetryPacket::try_from(info).ok())
+        })
+        .collect()
 }
 
 #[cfg(test)]
