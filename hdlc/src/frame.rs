@@ -1,7 +1,7 @@
 use crc_any::CRCu16;
 
 type Bit = bool;
-type Byte = u8;
+pub(crate) type Byte = u8;
 
 /// Unnumbered format commands/responses.
 #[derive(Debug, Clone, PartialEq)]
@@ -88,7 +88,7 @@ const MIN_FRAME_SIZE: usize = 48; // Start flag (8) + Address(8) + Control(8) + 
 pub(crate) struct Frame {
     address: Byte,
     control: Control,
-    info: Option<Vec<Byte>>,
+    pub(crate) info: Option<Vec<Byte>>,
     fcs: FrameCheckingSequence,
 }
 

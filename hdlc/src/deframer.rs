@@ -1,5 +1,7 @@
 use crate::bitvecdeque::BitVecDeque;
 use crate::frame::Frame;
+// use crate::packets::Packet;
+use crate::packets::telemetry::TelemetryPacket;
 use std::sync::mpsc;
 
 // Typical HDLC frames are up to 260 bytes (2080 bits)
@@ -30,8 +32,7 @@ impl Deframer {
     }
 
     // the function return is temporary for testing purposes
-    pub fn run(&mut self) -> Vec<Frame> {
-        let mut frames = Vec::new();
+    pub fn run(&mut self) {
         while let Ok(new_bits) = self.reader.recv() {
             if new_bits.is_empty() {
                 continue;
@@ -42,16 +43,19 @@ impl Deframer {
             }
 
             let new_frames = self.find_frames();
-            frames.extend(new_frames);
-            // let packets = frames
-            //     .into_iter()
-            //     .map(|frame| Packet::new(frame))
-            //     .collect::<Vec<Packet>>();
+
+            let _packets = new_frames
+                .into_iter()
+                .filter_map(|frame| {
+                    frame
+                        .info
+                        .and_then(|info| TelemetryPacket::try_from(info).ok())
+                })
+                .collect::<Vec<TelemetryPacket>>();
 
             // Publish these packets to a MQTT topic
             // Packet should be an interface so multiple packet types can be implemented
         }
-        frames
     }
 
     fn find_frames(&mut self) -> Vec<Frame> {
