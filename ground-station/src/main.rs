@@ -1,112 +1,132 @@
+use std::time::Duration;
+
 use tokio::{
-    sync::mpsc::{Receiver, Sender},
+    pin, select,
+    sync::mpsc::{Receiver, Sender, channel},
     task,
+    time::{Instant, sleep, sleep_until},
 };
+use tokio_stream::{Stream, StreamExt};
 
-/// Controls and configures the ground station.
-trait Controller {
-    async fn next_command(&mut self) -> Option<Command>;
-}
+// /// Anything that can send a [`Command`] to the ground station.
+// /// Could be reading from an MQTT topic, `stdin`, or whatever.
+// pub trait Controller {
+//     async fn next_command(&mut self) -> Option<Command>;
+// }
 
-/// Commands sent to the ground station.
-enum Command {
+/// A command (e.g. control or configuration) sent to the ground station.
+#[derive(Debug)]
+pub enum Command {
     Ping,
 }
 
 /// Messages sent from the ground station.
+#[derive(Debug, PartialEq)]
 enum Message {
     Pong,
 }
 
-/// Where the ground station sends the stuff it receives.
-trait Publisher {
-    async fn publish(&self, message: Message);
+struct Passes {
+    next_pass: Instant,
 }
 
-struct ChannelPublisher {
-    tx: Sender<Message>,
-}
-
-impl ChannelPublisher {
-    pub fn new(tx: Sender<Message>) -> Self {
-        Self { tx }
-    }
-}
-
-impl Publisher for ChannelPublisher {
-    async fn publish(&self, message: Message) {
-        let _ = self.tx.send(message).await;
-    }
-}
-
-struct GroundStation<C: Controller, P: Publisher> {
-    controller: C,
-    publisher: P,
-}
-
-impl<C: Controller, P: Publisher> GroundStation<C, P> {
-    pub fn new(controller: C, publisher: P) -> Self {
-        Self {
-            controller,
-            publisher,
-        }
+impl Passes {
+    /// Returns the next scheduled pass of the satellite.
+    pub fn next_pass(&self) -> Instant {
+        todo!()
     }
 
-    pub async fn run(&mut self) {
-        loop {
-            let command = self.controller.next_command().await.unwrap();
+    // pub fn recalculate(&self) {
+    //     todo!()
+    // }
+}
 
-            match command {
-                Command::Ping => self.publisher.publish(Message::Pong).await,
+// impl Stream for Passes {
+//     type Item = Instant;
+
+//     fn poll_next(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Self::Item>> {
+//         todo!()
+//     }
+// }
+
+async fn run(
+    mut controller: Receiver<Command>,
+    publisher: Sender<Message>,
+    mut passes: impl Iterator<Item = Instant>,
+    // mut passes: impl Stream<Item = Instant> + Unpin,
+) {
+    // Keep a pinned Sleep
+
+    let sleep = sleep_until(passes.next().unwrap());
+    tokio::pin!(sleep);
+
+    loop {
+        select! {
+            // React to ground station commands.
+            Some(cmd) = controller.recv() => {
+                let publisher = publisher.clone();
+
+                tokio::spawn(async move {
+                    match cmd {
+                        Command::Ping => publisher.send(Message::Pong).await.unwrap()
+                    }
+                });
+            }
+            // Wait for the pass.
+            _ = &mut sleep => {
+            // Some(_) = passes.next() => {
+                let handle = tokio::spawn(track());
+                handle.await.unwrap();
+
+                println!("Updating pass future...");
+                sleep.as_mut().reset(passes.next().unwrap());
             }
         }
     }
 }
 
-/// Reads controls
-struct ChannelController {
-    rx: Receiver<Command>,
-}
-
-impl ChannelController {
-    fn new(rx: Receiver<Command>) -> Self {
-        Self { rx }
-    }
-}
-
-impl Controller for ChannelController {
-    async fn next_command(&mut self) -> Option<Command> {
-        self.rx.recv().await
-    }
+async fn track() {
+    dbg!("Tracking satellite...");
+    sleep(Duration::from_secs(10)).await;
 }
 
 #[tokio::main]
 async fn main() {
     println!("Hello, world!");
+    // let (tx_mqtt, rx_mqtt) = channel(1);
+    // let (tx_cli, rx_cli) = channel(1);
+
+    // loop {
+    //     select! {
+    //         Some(v) = rx_mqtt.recv() => { dbg!(v) }
+    //         Some(v) = rx_cli.recv() => { dbg!(v) }
+    //     }
+    // }
 }
 
 #[cfg(test)]
 mod tests {
-    use tokio::sync::mpsc::channel;
-
     use super::*;
+    use tokio::sync::mpsc;
+    use tokio_stream::{self, StreamExt};
 
-    /// Simple test to test and understand the command -> response flow.
     #[tokio::test]
-    async fn ping_pong() {
-        let (tx_controller, rx_controller) = channel(1);
-        let controller = ChannelController::new(rx_controller);
+    async fn test_ping_pong() {
+        let (tx_cmd, rx_cmd) = mpsc::channel(1);
+        let (tx_msg, mut rx_msg) = mpsc::channel(1);
 
-        let (tx_publisher, mut rx_publisher) = channel(1);
-        let publisher = ChannelPublisher::new(tx_publisher);
+        // let stream = tokio_stream::iter(vec![Instant::now() + Duration::from_secs(200)]);
+        // stream.next()
 
-        let mut gs = GroundStation::new(controller, publisher);
+        // Spawn the run function as a background task
+        tokio::spawn(run(rx_cmd, tx_msg, stream));
 
-        tokio::spawn(async move { gs.run().await });
+        // Send a Ping command
+        tx_cmd.send(Command::Ping).await.expect("send ping");
 
-        tx_controller.send(Command::Ping).await.unwrap();
-        let message = rx_publisher.recv().await.unwrap();
+        // Wait for the Pong message
+        let msg = rx_msg.recv().await.expect("receive pong");
 
-        assert!(matches!(message, Message::Pong));
+        assert_eq!(msg, Message::Pong);
     }
 }
