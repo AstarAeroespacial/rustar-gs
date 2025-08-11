@@ -12,6 +12,7 @@ pub type Degrees = f64;
 pub type Meters = f64;
 
 /// The observer is the location of the ground station.
+#[derive(Clone)]
 pub struct Observer {
     /// Ground station latitude, in degrees.
     latitude: Degrees,

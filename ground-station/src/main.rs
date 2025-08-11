@@ -7,6 +7,9 @@ use tokio::{
     time::{Instant, sleep, sleep_until},
 };
 use tokio_stream::{Stream, StreamExt};
+use tracking;
+
+type Tle = String;
 
 // /// Anything that can send a [`Command`] to the ground station.
 // /// Could be reading from an MQTT topic, `stdin`, or whatever.
@@ -18,27 +21,13 @@ use tokio_stream::{Stream, StreamExt};
 #[derive(Debug)]
 pub enum Command {
     Ping,
+    SetTle(Tle),
 }
 
 /// Messages sent from the ground station.
 #[derive(Debug, PartialEq)]
 enum Message {
     Pong,
-}
-
-struct Passes {
-    next_pass: Instant,
-}
-
-impl Passes {
-    /// Returns the next scheduled pass of the satellite.
-    pub fn next_pass(&self) -> Instant {
-        todo!()
-    }
-
-    // pub fn recalculate(&self) {
-    //     todo!()
-    // }
 }
 
 // impl Stream for Passes {
@@ -49,33 +38,67 @@ impl Passes {
 //     }
 // }
 
+struct GroundStationStateOrConfigOrWhatever {
+    tle: Option<Tle>,
+    location: Option<tracking::Observer>,
+}
+
+impl GroundStationStateOrConfigOrWhatever {
+    pub fn update_tle(&mut self, new_tle: Tle) {
+        self.tle = Some(new_tle);
+    }
+}
+
+impl Default for GroundStationStateOrConfigOrWhatever {
+    fn default() -> Self {
+        Self {
+            tle: Default::default(),
+            location: Default::default(),
+        }
+    }
+}
+
 async fn run(
     mut controller: Receiver<Command>,
     publisher: Sender<Message>,
     mut passes: impl Stream<Item = Instant> + Unpin,
+    state: &mut GroundStationStateOrConfigOrWhatever,
 ) {
     loop {
         select! {
             // React to ground station commands.
             Some(cmd) = controller.recv() => {
-                let publisher = publisher.clone();
+                match cmd {
+                    Command::Ping => {
+                        let publisher = publisher.clone();
 
-                tokio::spawn(async move {
-                    match cmd {
-                        Command::Ping => publisher.send(Message::Pong).await.unwrap()
+                        tokio::spawn(async move {
+                            publisher.send(Message::Pong).await.unwrap();
+                        });
                     }
-                });
+                    Command::SetTle(tle) => {
+                        state.update_tle(tle); // TODO: ack change?
+                    }
+                }
             }
             // Wait for the pass.
             Some(_) = passes.next() => {
-                let handle = tokio::spawn(track());
-                handle.await.unwrap();
+                if let Some(observer) = state.location.as_ref() {
+                    let observer_clone = observer.clone();
+
+                    let handle = tokio::spawn(async move {
+                        track(&observer_clone).await
+                    });
+
+                    handle.await.unwrap();
+                }
             }
         }
     }
 }
 
-async fn track() {
+// block on to make sync and bridge the gap?
+async fn track(observer: &tracking::Observer) {
     dbg!("Tracking satellite...");
     sleep(Duration::from_secs(10)).await;
 }
@@ -110,7 +133,11 @@ mod tests {
         // stream.next()
 
         // Spawn the run function as a background task
-        tokio::spawn(run(rx_cmd, tx_msg, stream::empty()));
+        tokio::spawn(async move {
+            let mut state = GroundStationStateOrConfigOrWhatever::default();
+
+            run(rx_cmd, tx_msg, stream::empty(), &mut state).await;
+        });
 
         // Send a Ping command
         tx_cmd.send(Command::Ping).await.expect("send ping");
