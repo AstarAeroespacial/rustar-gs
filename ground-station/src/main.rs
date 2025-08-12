@@ -1,12 +1,10 @@
+mod gs_async;
+mod gs_sync;
+
 use std::time::Duration;
 
-use tokio::{
-    pin, select,
-    sync::mpsc::{Receiver, Sender, channel},
-    task,
-    time::{Instant, sleep, sleep_until},
-};
-use tokio_stream::{Stream, StreamExt};
+use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
+use tokio::select;
 use tracking;
 
 type Tle = String;
@@ -24,19 +22,28 @@ pub enum Command {
     SetTle(Tle),
 }
 
+#[derive(Debug)]
+pub enum CommandError {}
+
+impl TryFrom<Vec<u8>> for Command {
+    type Error = CommandError;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
 /// Messages sent from the ground station.
 #[derive(Debug, PartialEq)]
 enum Message {
     Pong,
 }
 
-// impl Stream for Passes {
-//     type Item = Instant;
-
-//     fn poll_next(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Self::Item>> {
-//         todo!()
-//     }
-// }
+impl Into<Vec<u8>> for Message {
+    fn into(self) -> Vec<u8> {
+        todo!()
+    }
+}
 
 struct GroundStationStateOrConfigOrWhatever {
     tle: Option<Tle>,
@@ -58,93 +65,53 @@ impl Default for GroundStationStateOrConfigOrWhatever {
     }
 }
 
-async fn run(
-    mut controller: Receiver<Command>,
-    publisher: Sender<Message>,
-    mut passes: impl Stream<Item = Instant> + Unpin,
-    state: &mut GroundStationStateOrConfigOrWhatever,
-) {
-    loop {
-        select! {
-            // React to ground station commands.
-            Some(cmd) = controller.recv() => {
-                match cmd {
-                    Command::Ping => {
-                        let publisher = publisher.clone();
-
-                        tokio::spawn(async move {
-                            publisher.send(Message::Pong).await.unwrap();
-                        });
-                    }
-                    Command::SetTle(tle) => {
-                        state.update_tle(tle); // TODO: ack change?
-                    }
-                }
-            }
-            // Wait for the pass.
-            Some(_) = passes.next() => {
-                if let Some(observer) = state.location.as_ref() {
-                    let observer_clone = observer.clone();
-
-                    let handle = tokio::spawn(async move {
-                        track(&observer_clone).await
-                    });
-
-                    handle.await.unwrap();
-                }
-            }
-        }
-    }
-}
-
-// block on to make sync and bridge the gap?
-async fn track(observer: &tracking::Observer) {
-    dbg!("Tracking satellite...");
-    sleep(Duration::from_secs(10)).await;
-}
-
 #[tokio::main]
 async fn main() {
     println!("Hello, world!");
-    // let (tx_mqtt, rx_mqtt) = channel(1);
-    // let (tx_cli, rx_cli) = channel(1);
 
-    // loop {
-    //     select! {
-    //         Some(v) = rx_mqtt.recv() => { dbg!(v) }
-    //         Some(v) = rx_cli.recv() => { dbg!(v) }
-    //     }
-    // }
-}
+    // TODO: 1. Load/validate config.
+    // 2. Create the state.
+    let mut state = GroundStationStateOrConfigOrWhatever::default();
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use futures::stream;
-    use tokio::sync::mpsc;
-    use tokio_stream::{self, StreamExt};
+    // 3. Set up MQTT.
 
-    #[tokio::test]
-    async fn test_ping_pong() {
-        let (tx_cmd, rx_cmd) = mpsc::channel(1);
-        let (tx_msg, mut rx_msg) = mpsc::channel(1);
+    let mut mqttoptions = MqttOptions::new("rumqtt-async", "test.mosquitto.org", 1883);
+    mqttoptions.set_keep_alive(Duration::from_secs(5));
 
-        // let stream = tokio_stream::iter(vec![Instant::now() + Duration::from_secs(200)]);
-        // stream.next()
+    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
-        // Spawn the run function as a background task
-        tokio::spawn(async move {
-            let mut state = GroundStationStateOrConfigOrWhatever::default();
+    client
+        .subscribe("hello/rumqtt", QoS::AtLeastOnce)
+        .await
+        .unwrap();
 
-            run(rx_cmd, tx_msg, stream::empty(), &mut state).await;
-        });
+    // 4. Set up the TCP socket for connecting with the CLI.
 
-        // Send a Ping command
-        tx_cmd.send(Command::Ping).await.expect("send ping");
+    // 5. Launch the main task.
+    tokio::spawn(async move {
+        loop {
+            select! {
+                // Check MQTT.
+                Ok(notification) = eventloop.poll() => {
+                    // notification
+                    if let Event::Incoming(Packet::Publish(publish)) = notification {
+                        match Command::try_from(publish.payload.to_vec()).unwrap() {
+                            Command::Ping => {
+                                // It's cheap, inside it's just a Sender.
+                                let client_clone = client.clone();
 
-        // Wait for the Pong message
-        let msg = rx_msg.recv().await.expect("receive pong");
-
-        assert_eq!(msg, Message::Pong);
-    }
+                                tokio::spawn(async move {
+                                    client_clone.publish("antenna/1", QoS::AtLeastOnce, false, Message::Pong).await.unwrap();
+                                });
+                            },
+                            Command::SetTle(tle) => state.update_tle(tle),
+                        }
+                    }
+                }
+                // Check TCP socket for CLI input.
+                // Check timer.
+                // Some(v) = rx_cli.recv() => { dbg!(v) }
+            }
+        }
+    });
 }
