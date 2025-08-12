@@ -135,7 +135,7 @@ impl Frame {
         let content_bits = &bits[8..bits.len() - 8];
         let mut idx = 0;
 
-        // bit destuffing should be done here
+        let content_bits = bit_destuff(content_bits);
 
         // Extract address
         let address_bits = &content_bits[idx..idx + 8];
@@ -235,6 +235,33 @@ fn bit_stuff(bits_in: &[Bit]) -> Vec<Bit> {
     stuffed
 }
 
+/// Performs HDLC bit destuffing: After five consecutive 1s, remove the following 0 if present.
+fn bit_destuff(bits_in: &[Bit]) -> Vec<Bit> {
+    let mut destuffed = Vec::new();
+    let mut ones_count = 0;
+    let mut i = 0;
+
+    while i < bits_in.len() {
+        let bit = bits_in[i];
+        destuffed.push(bit);
+
+        if bit {
+            ones_count += 1;
+            if ones_count == 5 && i + 1 < bits_in.len() {
+                // After 5 ones, if next bit is 0, skip it (was stuffed)
+                if !bits_in[i + 1] {
+                    i += 1;
+                }
+                ones_count = 0;
+            }
+        } else {
+            ones_count = 0;
+        }
+        i += 1;
+    }
+    destuffed
+}
+
 /// Calculates the FCS (CRC-16-CCITT-FALSE) for the given address, control, and info bytes.
 fn calculate_fcs(address: Byte, control_byte: Byte, info_bytes: &Option<Vec<Byte>>) -> u16 {
     let mut data = Vec::new();
@@ -283,7 +310,7 @@ mod tests {
         // Sin cinco unos consecutivos, no se modifica
         let input = vec![false, false, true, false, true, false];
         let expected = input.clone();
-        assert_eq!(Frame::bit_stuff(&input), expected);
+        assert_eq!(bit_stuff(&input), expected);
     }
 
     #[test]
@@ -291,7 +318,7 @@ mod tests {
         // Cinco unos consecutivos → se inserta un 0
         let input = vec![true, true, true, true, true];
         let expected = vec![true, true, true, true, true, false];
-        assert_eq!(Frame::bit_stuff(&input), expected);
+        assert_eq!(bit_stuff(&input), expected);
     }
 
     #[test]
@@ -306,7 +333,7 @@ mod tests {
             true, true, true, true, true, false, //
             false, false,
         ];
-        assert_eq!(Frame::bit_stuff(&input), expected);
+        assert_eq!(bit_stuff(&input), expected);
     }
 
     #[test]
@@ -316,7 +343,7 @@ mod tests {
         let expected = vec![
             true, true, true, true, true, false, true, true, true, true, true, false,
         ];
-        assert_eq!(Frame::bit_stuff(&input), expected);
+        assert_eq!(bit_stuff(&input), expected);
     }
 
     #[test]
@@ -329,7 +356,7 @@ mod tests {
         let expected = vec![
             true, true, true, true, true, false, false, true, true, false,
         ];
-        assert_eq!(Frame::bit_stuff(&input), expected);
+        assert_eq!(bit_stuff(&input), expected);
     }
 
     #[test]
@@ -418,5 +445,13 @@ mod tests {
             }),
             0b1100_0111,
         );
+    }
+
+    #[test]
+    fn destuffed_frame_matches_original() {
+        let original = vec![true, true, true, true, true, true, false, true];
+        let stuffed = bit_stuff(&original);
+        let destuffed = bit_destuff(&stuffed);
+        assert_eq!(original, destuffed);
     }
 }
