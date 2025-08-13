@@ -5,21 +5,21 @@ pub(crate) type Byte = u8;
 
 /// Unnumbered format commands/responses.
 #[derive(Debug, Clone, PartialEq)]
-enum UnnumberedType {
+pub(crate) enum UnnumberedType {
     Information, // UI - Unnumbered Information
     Test,        // TEST - Unnumbered Test
 }
 
 /// Defines the function of the frame.
 #[derive(Debug, Clone, PartialEq)]
-enum Control {
+pub(crate) enum Control {
     /// The U format is used to provide additional data link control
     /// functions and unnumbered information transfer.
     Unnumbered { kind: UnnumberedType, pf: Bit },
 }
 
 #[derive(Debug)]
-enum DeframingError {
+pub(crate) enum DeframingError {
     InvalidControlFrameType,
     InvalidControlUnnumberedType,
 }
@@ -87,7 +87,7 @@ const MIN_FRAME_SIZE: usize = 48; // Start flag (8) + Address(8) + Control(8) + 
 /// - `fcs`: Frame Check Sequence for error detection.
 pub(crate) struct Frame {
     address: Byte,
-    control: Control,
+    pub(crate) control: Control,
     pub(crate) info: Option<Vec<Byte>>,
     fcs: FrameCheckingSequence,
 }
