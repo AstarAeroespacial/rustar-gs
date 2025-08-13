@@ -22,6 +22,8 @@ pub(crate) enum Control {
 pub(crate) enum DeframingError {
     InvalidControlFrameType,
     InvalidControlUnnumberedType,
+    InvalidPacketLength,
+    PacketLengthMismatch,
 }
 
 impl TryFrom<Byte> for Control {

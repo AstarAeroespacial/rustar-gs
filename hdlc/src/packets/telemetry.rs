@@ -1,4 +1,4 @@
-use crate::frame::Byte;
+use crate::frame::{Byte, DeframingError};
 use std::{
     default,
     io::{Cursor, Read},
@@ -6,7 +6,7 @@ use std::{
 
 // TelemetryPacket (20 bytes)
 #[derive(Debug, PartialEq)]
-pub struct TelemetryPacket {
+pub(crate) struct TelemetryPacket {
     pub pkt_type: u8, // 0x01
     pub length: u16,  // length of payload
     pub payload: TelemetryData,
@@ -29,12 +29,12 @@ impl default::Default for TelemetryPacket {
 }
 
 impl TryFrom<Vec<Byte>> for TelemetryPacket {
-    type Error = String;
+    type Error = DeframingError;
 
     fn try_from(info: Vec<Byte>) -> Result<Self, Self::Error> {
         if info.len() < 3 {
             // At least need pkt_type (1) + length (2)
-            return Err("Packet too short".to_string());
+            return Err(DeframingError::InvalidPacketLength);
         }
 
         // Read pkt_type (1 byte)
@@ -44,8 +44,8 @@ impl TryFrom<Vec<Byte>> for TelemetryPacket {
         let length = u16::from_be_bytes([info[1], info[2]]);
 
         // Check if we have enough bytes for the payload
-        if info.len() < 3 + length as usize {
-            return Err("Packet shorter than specified length".to_string());
+        if info.len() != 3 + length as usize {
+            return Err(DeframingError::PacketLengthMismatch);
         }
 
         // Get payload slice
