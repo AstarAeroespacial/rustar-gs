@@ -22,8 +22,10 @@ pub(crate) enum Control {
 pub(crate) enum DeframingError {
     InvalidControlFrameType,
     InvalidControlUnnumberedType,
+    InvalidFrameSize,
     InvalidPacketLength,
     PacketLengthMismatch,
+    FcsMismatch,
 }
 
 impl TryFrom<Byte> for Control {
@@ -105,34 +107,12 @@ impl FrameCheckingSequence {
     }
 }
 
-impl Frame {
-    pub fn new(address: Byte, control: Control, info: Option<Vec<Byte>>) -> Self {
-        // 1. Preparar bytes para el CRC
-        let mut data = Vec::new();
-        data.push(address);
-        data.push(control.clone().into());
+impl TryFrom<Vec<Bit>> for Frame {
+    type Error = DeframingError;
 
-        if let Some(ref payload) = info {
-            data.extend(payload);
-        }
-
-        // 2. Calcular el FCS (CRC-16-CCITT-FALSE)
-        let mut crc = CRCu16::crc16ccitt_false();
-        crc.digest(&data);
-        let fcs = FrameCheckingSequence(crc.get_crc());
-
-        // 3. Crear el frame
-        Frame {
-            address,
-            control,
-            info,
-            fcs,
-        }
-    }
-
-    pub fn try_from(bits: Vec<Bit>) -> Option<Self> {
+    fn try_from(bits: Vec<Bit>) -> Result<Self, Self::Error> {
         if bits.len() < MIN_FRAME_SIZE {
-            return None;
+            return Err(DeframingError::InvalidFrameSize);
         }
 
         // Remove flags
@@ -149,7 +129,7 @@ impl Frame {
         // Extract control
         let control_bits = &content_bits[idx..idx + 8];
         let control_byte = bits_to_byte(control_bits);
-        let control = Control::try_from(control_byte).ok()?;
+        let control = Control::try_from(control_byte)?;
         idx += 8;
 
         // Extract info bits (everything between address and FCS)
@@ -181,15 +161,41 @@ impl Frame {
 
         let calc_fcs = calculate_fcs(address, control_byte, &info_bytes);
         if calc_fcs != fcs.0 {
-            return None;
+            return Err(DeframingError::FcsMismatch);
         }
 
-        Some(Frame {
+        Ok(Frame {
             address,
             control,
             info: info_bytes,
             fcs,
         })
+    }
+}
+
+impl Frame {
+    pub fn new(address: Byte, control: Control, info: Option<Vec<Byte>>) -> Self {
+        // 1. Preparar bytes para el CRC
+        let mut data = Vec::new();
+        data.push(address);
+        data.push(control.clone().into());
+
+        if let Some(ref payload) = info {
+            data.extend(payload);
+        }
+
+        // 2. Calcular el FCS (CRC-16-CCITT-FALSE)
+        let mut crc = CRCu16::crc16ccitt_false();
+        crc.digest(&data);
+        let fcs = FrameCheckingSequence(crc.get_crc());
+
+        // 3. Crear el frame
+        Frame {
+            address,
+            control,
+            info,
+            fcs,
+        }
     }
 
     /// Converts a Frame into a vector of bits.

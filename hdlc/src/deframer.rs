@@ -75,7 +75,7 @@ impl Deframer {
                         // drain the whole frame between syncs
                         let frame_bits = self.buffer.drain_range(0, self.idx + 8);
 
-                        if let Some(frame) = Frame::try_from(frame_bits) {
+                        if let Ok(frame) = Frame::try_from(frame_bits) {
                             frames.push(frame);
                         }
 
