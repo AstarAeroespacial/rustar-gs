@@ -8,6 +8,8 @@ tracking = { path = "../tracking" }
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1.17"
 rumqttc = "0.24.0"
+sgp4 = "2.3.0"
+chrono = "0.4.41"
 
 [dev-dependencies]
 futures = "0.3.31"

@@ -4,7 +4,7 @@ mod gs_sync;
 use std::time::Duration;
 
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
-use tokio::select;
+use tokio::{select, time::Instant};
 use tracking;
 
 type Tle = String;
@@ -65,6 +65,24 @@ impl Default for GroundStationStateOrConfigOrWhatever {
     }
 }
 
+pub fn get_duration_until_next_pass(
+    observer: &tracking::Observer,
+    elements: &sgp4::Elements,
+    window: Duration,
+) -> Duration {
+    let now = chrono::Utc::now();
+
+    let pass_timestamp = tracking::get_next_pass(observer, elements, now, window)
+        .unwrap()
+        .aos
+        .unwrap()
+        .time;
+
+    let now_timestamp = now.timestamp() as f64;
+
+    Duration::from_secs_f64(pass_timestamp - now_timestamp)
+}
+
 #[tokio::main]
 async fn main() {
     println!("Hello, world!");
@@ -88,7 +106,25 @@ async fn main() {
     // 4. Set up the TCP socket for connecting with the CLI.
 
     // 5. Launch the main task.
+    // let sleep = sleep_until(Instant::now());
+
+    let observer = tracking::Observer::new(-34.6, -58.4, 2.5);
+    let elements = sgp4::Elements::from_tle(
+        Some("ISS (ZARYA)".to_owned()),
+        "1 25544U 98067A   25186.50618345  .00006730  00000+0  12412-3 0  9992".as_bytes(),
+        "2 25544  51.6343 216.2777 0002492 336.9059  23.1817 15.50384048518002".as_bytes(),
+    )
+    .unwrap();
+
     tokio::spawn(async move {
+        let mut timer = get_duration_until_next_pass(
+            &observer,
+            &elements,
+            Duration::from_secs_f64(3600.0 * 6.0),
+        );
+        let sleep = tokio::time::sleep(timer);
+        tokio::pin!(sleep);
+
         loop {
             select! {
                 // Check MQTT.
@@ -107,6 +143,16 @@ async fn main() {
                             Command::SetTle(tle) => state.update_tle(tle),
                         }
                     }
+                }
+                _ = &mut sleep => {
+                    // track the sat
+                    timer = get_duration_until_next_pass(
+                        &observer,
+                        &elements,
+                        Duration::from_secs_f64(3600.0 * 6.0),
+                    );
+
+                    sleep.as_mut().reset(Instant::now() + timer);
                 }
                 // Check TCP socket for CLI input.
                 // Check timer.
