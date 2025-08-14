@@ -87,6 +87,7 @@ const MIN_FRAME_SIZE: usize = 48; // Start flag (8) + Address(8) + Control(8) + 
 /// - `control`: The control field, representing frame's function.
 /// - `info`: Optional payload data contained in the frame.
 /// - `fcs`: Frame Check Sequence for error detection.
+#[derive(Debug)]
 pub(crate) struct Frame {
     address: Byte,
     pub(crate) control: Control,
@@ -94,6 +95,7 @@ pub(crate) struct Frame {
     fcs: FrameCheckingSequence,
 }
 
+#[derive(Debug)]
 struct FrameCheckingSequence(u16);
 
 impl FrameCheckingSequence {
