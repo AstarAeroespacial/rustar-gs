@@ -13,7 +13,7 @@ fn main() {
 
     let buenos_aires = Observer::new(-34.6, -58.4, 2.5);
 
-    let tracker = Tracker::new(&buenos_aires, &elements).unwrap();
+    let tracker = Tracker::new(&buenos_aires, elements).unwrap();
 
     let now = chrono::Utc::now();
 

@@ -1,0 +1,11 @@
+[package]
+name = "ground-station"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tracking = { path = "../tracking" }
+antenna-controller = { path = "../antenna-controller" }
+modem = { path = "../modem" }
+hdlc = { path = "../hdlc" }
+chrono = "0.4.41"

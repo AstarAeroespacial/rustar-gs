@@ -6,7 +6,7 @@ use std::{
 
 // TelemetryPacket (20 bytes)
 #[derive(Debug, PartialEq)]
-pub(crate) struct TelemetryPacket {
+pub struct TelemetryPacket {
     pub pkt_type: u8, // 0x01
     pub length: u16,  // length of payload
     pub payload: TelemetryData,

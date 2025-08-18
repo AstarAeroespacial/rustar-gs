@@ -1,4 +1,4 @@
 mod bitvecdeque;
-mod deframer;
+pub mod deframer;
 mod frame;
 mod packets;

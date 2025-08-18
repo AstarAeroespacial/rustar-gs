@@ -1,3 +1,4 @@
+pub use sgp4::Elements;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -47,17 +48,17 @@ pub enum TrackerError {
 }
 
 /// The tracker is used to predict the position of a satellite, given its orbital elements, relative to the ground station.
-pub struct Tracker<'a> {
+pub struct Tracker {
     observer: PredictObserver,
-    elements: &'a sgp4::Elements,
+    elements: sgp4::Elements,
     constants: sgp4::Constants,
 }
 
-impl<'a> Tracker<'a> {
+impl Tracker {
     /// Create a new tracker given the observer and the satellite's orbital elements.
-    pub fn new(observer: &Observer, elements: &'a sgp4::Elements) -> Result<Self, TrackerError> {
+    pub fn new(observer: &Observer, elements: sgp4::Elements) -> Result<Self, TrackerError> {
         let constants =
-            sgp4::Constants::from_elements(elements).map_err(TrackerError::ElementsError)?;
+            sgp4::Constants::from_elements(&elements).map_err(TrackerError::ElementsError)?;
 
         let observer = PredictObserver {
             name: "".to_string(),
@@ -76,7 +77,7 @@ impl<'a> Tracker<'a> {
 
     /// Predict the observation of the satellite at a given time.
     pub fn track(&self, at: DateTime<Utc>) -> Result<Observation, TrackerError> {
-        let orbit = orbit::predict_orbit(self.elements, &self.constants, at.timestamp() as f64)
+        let orbit = orbit::predict_orbit(&self.elements, &self.constants, at.timestamp() as f64)
             .map_err(TrackerError::OrbitPredictionError)?;
 
         let observation = observer::predict_observe_orbit(&self.observer, &orbit);
@@ -91,7 +92,7 @@ impl<'a> Tracker<'a> {
     pub fn next_pass(&self, from: DateTime<Utc>, window: Duration) -> Option<Pass> {
         let oe = ObserverElements {
             observer: &self.observer,
-            elements: self.elements,
+            elements: &self.elements,
             constants: &self.constants,
         };
 
