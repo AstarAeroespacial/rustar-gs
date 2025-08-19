@@ -1,4 +1,5 @@
-use futures::Stream;
+use chrono::{DateTime, Utc};
+use futures::{Stream, StreamExt};
 use pin_project::pin_project;
 use std::{
     pin::Pin,
@@ -6,6 +7,20 @@ use std::{
     time::Duration,
 };
 use tokio::time::{self, Instant, Interval};
+use tracking::{Observation, Tracker, TrackerError};
+
+pub trait RealTimeStreamExt: Stream<Item = DateTime<Utc>> + Sized {
+    fn track_with(self, tracker: Tracker) -> impl Stream<Item = Result<Observation, TrackerError>>;
+}
+
+impl<S> RealTimeStreamExt for S
+where
+    S: Stream<Item = DateTime<Utc>> + Sized,
+{
+    fn track_with(self, tracker: Tracker) -> impl Stream<Item = Result<Observation, TrackerError>> {
+        self.map(move |at| tracker.track(at))
+    }
+}
 
 /// An asynchronous stream that yields ticks at a fixed interval between a start and end time.
 ///

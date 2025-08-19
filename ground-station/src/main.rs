@@ -6,12 +6,16 @@ mod scheduler;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use futures::{StreamExt, TryStreamExt};
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use tokio::{select, time::Instant};
 use tokio_stream::StreamExt;
-use tracking;
+use tracking::{self, Tracker};
 
-use crate::scheduler::Scheduler;
+use crate::{
+    finite_interval::{FiniteInterval, RealTimeStreamExt},
+    scheduler::Scheduler,
+};
 
 type Tle = String;
 
@@ -102,6 +106,14 @@ async fn main() {
 
     // 5. Launch the main task.
 
+    let observer = tracking::Observer::new(-34.6, -58.4, 2.5);
+    let elements = sgp4::Elements::from_tle(
+        Some("ISS (ZARYA)".to_owned()),
+        "1 25544U 98067A   25186.50618345  .00006730  00000+0  12412-3 0  9992".as_bytes(),
+        "2 25544  51.6343 216.2777 0002492 336.9059  23.1817 15.50384048518002".as_bytes(),
+    )
+    .unwrap();
+
     let scheduler = Scheduler::new();
     tokio::pin!(scheduler);
 
@@ -127,7 +139,25 @@ async fn main() {
             // Check scheduled events.
             Some(event) = scheduler.next() => {
                 match event {
-                    scheduler::Event::Pass(pass) => todo!(),
+                    scheduler::Event::Pass(pass) => {
+                        let start = Instant::now() + Duration::from_secs(2);
+                        let end = start + Duration::from_secs(10);
+                        let period = Duration::from_secs(3);
+
+                        let tracker = Tracker::new(&observer, &elements).unwrap();
+
+                        let mut observations_stream = FiniteInterval::new(start, end, period).map(|_| Utc::now()).track_with(tracker);
+
+                        while let Some(obs_maybe) = observations_stream.next().await {
+                            match obs_maybe {
+                                Ok(observation) => {
+                                    dbg!(&observation);
+                                },
+                                Err(_) => todo!(),
+                            }
+                        }
+                    },
+                    // TODO: make the pass scheduler to automatically update
                     scheduler::Event::Retry => todo!(),
                 }
             }
