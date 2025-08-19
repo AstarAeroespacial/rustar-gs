@@ -4,9 +4,9 @@ use futures::Stream;
 use pin_project::pin_project;
 use tokio::time::{Instant, Sleep};
 
-struct Pass {}
+pub struct Pass {}
 
-enum Event {
+pub enum Event {
     Pass(Pass),
     Retry,
 }
@@ -39,21 +39,21 @@ impl PartialEq for ScheduledEvent {
 impl Eq for ScheduledEvent {}
 
 #[pin_project]
-struct Scheduler {
+pub struct Scheduler {
     queue: BinaryHeap<ScheduledEvent>,
     #[pin]
     sleeper: Option<Sleep>,
 }
 
 impl Scheduler {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             queue: BinaryHeap::new(),
             sleeper: None,
         }
     }
 
-    fn push(&mut self, event: ScheduledEvent) {
+    pub fn push(&mut self, event: ScheduledEvent) {
         self.queue.push(event);
     }
 }

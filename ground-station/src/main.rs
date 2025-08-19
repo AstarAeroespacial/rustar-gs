@@ -1,11 +1,17 @@
-mod gs_async;
-mod gs_sync;
+// mod gs_async;
+// mod gs_sync;
+mod finite_interval;
+mod scheduler;
 
 use std::time::Duration;
 
+use chrono::{DateTime, Utc};
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use tokio::{select, time::Instant};
+use tokio_stream::StreamExt;
 use tracking;
+
+use crate::scheduler::Scheduler;
 
 type Tle = String;
 
@@ -65,22 +71,11 @@ impl Default for GroundStationStateOrConfigOrWhatever {
     }
 }
 
-pub fn get_duration_until_next_pass(
-    observer: &tracking::Observer,
-    elements: &sgp4::Elements,
-    window: Duration,
-) -> Duration {
-    let now = chrono::Utc::now();
+fn datetime_to_instant(dt: DateTime<Utc>) -> Instant {
+    let now = Utc::now();
+    let dur = (dt - now).to_std().expect("DateTime must be in the future");
 
-    let pass_timestamp = tracking::get_next_pass(observer, elements, now, window)
-        .unwrap()
-        .aos
-        .unwrap()
-        .time;
-
-    let now_timestamp = now.timestamp() as f64;
-
-    Duration::from_secs_f64(pass_timestamp - now_timestamp)
+    Instant::now() + dur
 }
 
 #[tokio::main]
@@ -106,58 +101,39 @@ async fn main() {
     // 4. Set up the TCP socket for connecting with the CLI.
 
     // 5. Launch the main task.
-    // let sleep = sleep_until(Instant::now());
 
-    let observer = tracking::Observer::new(-34.6, -58.4, 2.5);
-    let elements = sgp4::Elements::from_tle(
-        Some("ISS (ZARYA)".to_owned()),
-        "1 25544U 98067A   25186.50618345  .00006730  00000+0  12412-3 0  9992".as_bytes(),
-        "2 25544  51.6343 216.2777 0002492 336.9059  23.1817 15.50384048518002".as_bytes(),
-    )
-    .unwrap();
+    let scheduler = Scheduler::new();
+    tokio::pin!(scheduler);
 
-    tokio::spawn(async move {
-        let mut timer = get_duration_until_next_pass(
-            &observer,
-            &elements,
-            Duration::from_secs_f64(3600.0 * 6.0),
-        );
-        let sleep = tokio::time::sleep(timer);
-        tokio::pin!(sleep);
+    loop {
+        select! {
+            // Check MQTT.
+            Ok(notification) = eventloop.poll() => {
+                // notification
+                if let Event::Incoming(Packet::Publish(publish)) = notification {
+                    match Command::try_from(publish.payload.to_vec()).unwrap() {
+                        Command::Ping => {
+                            // It's cheap, inside it's just a Sender.
+                            let client_clone = client.clone();
 
-        loop {
-            select! {
-                // Check MQTT.
-                Ok(notification) = eventloop.poll() => {
-                    // notification
-                    if let Event::Incoming(Packet::Publish(publish)) = notification {
-                        match Command::try_from(publish.payload.to_vec()).unwrap() {
-                            Command::Ping => {
-                                // It's cheap, inside it's just a Sender.
-                                let client_clone = client.clone();
-
-                                tokio::spawn(async move {
-                                    client_clone.publish("antenna/1", QoS::AtLeastOnce, false, Message::Pong).await.unwrap();
-                                });
-                            },
-                            Command::SetTle(tle) => state.update_tle(tle),
-                        }
+                            tokio::spawn(async move {
+                                client_clone.publish("antenna/1", QoS::AtLeastOnce, false, Message::Pong).await.unwrap();
+                            });
+                        },
+                        Command::SetTle(tle) => state.update_tle(tle),
                     }
                 }
-                _ = &mut sleep => {
-                    // track the sat
-                    timer = get_duration_until_next_pass(
-                        &observer,
-                        &elements,
-                        Duration::from_secs_f64(3600.0 * 6.0),
-                    );
-
-                    sleep.as_mut().reset(Instant::now() + timer);
-                }
-                // Check TCP socket for CLI input.
-                // Check timer.
-                // Some(v) = rx_cli.recv() => { dbg!(v) }
             }
+            // Check scheduled events.
+            Some(event) = scheduler.next() => {
+                match event {
+                    scheduler::Event::Pass(pass) => todo!(),
+                    scheduler::Event::Retry => todo!(),
+                }
+            }
+            // Check TCP socket for CLI input.
+            // Check timer.
+            // Some(v) = rx_cli.recv() => { dbg!(v) }
         }
-    });
+    }
 }

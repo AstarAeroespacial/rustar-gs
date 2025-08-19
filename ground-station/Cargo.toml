@@ -5,11 +5,13 @@ edition = "2024"
 
 [dependencies]
 tracking = { path = "../tracking" }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["full", "test-util"] }
 tokio-stream = "0.1.17"
 rumqttc = "0.24.0"
 sgp4 = "2.3.0"
 chrono = "0.4.41"
+futures = "0.3.31"
+pin-project = "1.1.10"
 
 [dev-dependencies]
 futures = "0.3.31"
