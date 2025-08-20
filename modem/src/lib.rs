@@ -1,8 +1,5 @@
-mod demodulator;
-mod modulator;
-
-pub use demodulator::Demodulator;
-pub use modulator::Modulator;
+pub mod demodulator;
+pub mod modulator;
 
 trait BitSink {}
 trait SampleSource {}

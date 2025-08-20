@@ -1,50 +1,39 @@
 use crate::bitvecdeque::BitVecDeque;
+use crate::frame::Bit;
 use crate::frame::Frame;
 use crate::packets::telemetry::TelemetryPacket;
-use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+
+pub trait Deframer {
+    fn run(&mut self);
+}
 
 // Typical HDLC frames are up to 260 bytes (2080 bits)
 // 4096 bits (512 bytes) is a safe upper bound for most use cases
 const MAX_BUFFER_LEN: usize = 4096;
-const FLAG_ARRAY: [bool; 8] = [false, true, true, true, true, true, true, false];
+const FLAG_ARRAY: [Bit; 8] = [false, true, true, true, true, true, true, false];
 
 pub enum ParserState {
     SearchingStartSync,
     SearchingEndSync,
 }
 
-pub struct Deframer {
-    reader: mpsc::Receiver<Vec<bool>>,
+pub struct HdlcDeframer {
+    reader: Receiver<Vec<Bit>>,
+    writer: Sender<Vec<TelemetryPacket>>,
     buffer: BitVecDeque,
     idx: usize, // it's an index, or offset, from the 0th element of the buffer
     state: ParserState,
 }
 
-impl Deframer {
-    pub fn new(rx: mpsc::Receiver<Vec<bool>>) -> Self {
+impl HdlcDeframer {
+    pub fn new(rx: Receiver<Vec<Bit>>, tx: Sender<Vec<TelemetryPacket>>) -> Self {
         Self {
             reader: rx,
+            writer: tx,
             buffer: BitVecDeque::new(),
             idx: 0,
             state: ParserState::SearchingStartSync,
-        }
-    }
-
-    // the function return is temporary for testing purposes
-    pub fn run(&mut self) {
-        while let Ok(new_bits) = self.reader.recv() {
-            if new_bits.is_empty() {
-                continue;
-            }
-
-            for bit in new_bits {
-                self.buffer.push_back(bit);
-            }
-
-            let new_frames = self.find_frames();
-            let _packets = deframe(new_frames);
-
-            // Publish these packets to a MQTT topic or send them to a handler via a channel
         }
     }
 
@@ -59,9 +48,9 @@ impl Deframer {
                 self.state = ParserState::SearchingStartSync;
                 break;
             }
-            // Usar slice_to_bitvec para obtener 8 bits y convertir a Vec<bool>
+            // Usar slice_to_bitvec para obtener 8 bits y convertir a Vec<Bit>
             let bitvec_slice = self.buffer.slice_to_bitvec(self.idx, self.idx + 8);
-            let slice: Vec<bool> = bitvec_slice.iter().map(|bit| *bit).collect();
+            let slice: Vec<Bit> = bitvec_slice.iter().map(|bit| *bit).collect();
 
             // found sync
             if slice == FLAG_ARRAY {
@@ -103,6 +92,28 @@ impl Deframer {
     }
 }
 
+impl Deframer for HdlcDeframer {
+    fn run(&mut self) {
+        while let Ok(new_bits) = self.reader.recv() {
+            if new_bits.is_empty() {
+                continue;
+            }
+
+            for bit in new_bits {
+                self.buffer.push_back(bit);
+            }
+
+            let new_frames = self.find_frames();
+            let packets = deframe(new_frames);
+
+            self.writer.send(packets).unwrap_or_else(|e| {
+                // Error should be logged somewhere
+                eprintln!("Failed to send telemetry packets: {}", e);
+            });
+        }
+    }
+}
+
 fn deframe(frames: Vec<Frame>) -> Vec<TelemetryPacket> {
     frames
         .into_iter()
@@ -122,7 +133,7 @@ mod tests {
 
     // #[test]
     // fn empty_frame_with_garbage_before_and_after() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -146,7 +157,7 @@ mod tests {
 
     // #[test]
     // fn frame_with_no_garbage() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -170,7 +181,7 @@ mod tests {
 
     // #[test]
     // fn frame_with_previous_garbage() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -195,7 +206,7 @@ mod tests {
 
     // #[test]
     // fn just_empty_bit_vecs() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -213,7 +224,7 @@ mod tests {
 
     // #[test]
     // fn just_garbage() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -231,7 +242,7 @@ mod tests {
 
     // #[test]
     // fn frame_with_missing_start_flag() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -248,7 +259,7 @@ mod tests {
 
     // #[test]
     // fn frame_with_missing_end_flag() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -265,7 +276,7 @@ mod tests {
 
     // #[test]
     // fn two_frames_with_no_garbage() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -300,7 +311,7 @@ mod tests {
 
     // #[test]
     // fn two_frames_with_garbage_between() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -338,7 +349,7 @@ mod tests {
 
     // #[test]
     // fn two_frames_with_garbage_before_between_and_after() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -379,7 +390,7 @@ mod tests {
 
     // #[test]
     // fn two_empty_frames_with_garbage_before_and_after() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -409,7 +420,7 @@ mod tests {
 
     // #[test]
     // fn flags_come_in_chunks() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -435,7 +446,7 @@ mod tests {
 
     // #[test]
     // fn frame_with_max_buffer_length() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -463,7 +474,7 @@ mod tests {
 
     // #[test]
     // fn frame_exceeds_max_buffer_length() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -485,7 +496,7 @@ mod tests {
 
     // #[test]
     // fn frame_after_cleared_buffer() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);
@@ -511,7 +522,7 @@ mod tests {
 
     // #[test]
     // fn frame_after_max_buffer_length_frame() {
-    //     let (tx, rx) = mpsc::channel::<Vec<bool>>();
+    //     let (tx, rx) = mpsc::channel::<Vec<Bit>>();
 
     //     let handle = thread::spawn(move || {
     //         let mut deframer = Deframer::new(rx);

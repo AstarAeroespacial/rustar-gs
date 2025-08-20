@@ -1,22 +1,35 @@
 use serialport::SerialPort;
 use std::{io, time::Duration};
 
-/// A controller for an antenna, allowing communication via a serial port.
-pub struct AntennaController {
-    pub port: Box<dyn SerialPort>,
+pub trait AntennaController {
+    /// Sends data to the antenna.
+    fn send(
+        &mut self,
+        azimuth: f64,
+        elevation: f64,
+        sat_name: &str,
+        downlink_number: i64,
+    ) -> io::Result<()>;
 }
 
-impl AntennaController {
+/// A controller for an antenna, allowing communication via a serial port.
+pub struct SerialAntennaController {
+    port: Box<dyn SerialPort>,
+}
+
+impl SerialAntennaController {
     /// Creates a new `AntennaController` instance with the specified port name and baud rate.
     pub fn new(port_name: &str, baud_rate: u32) -> io::Result<Self> {
         let port = serialport::new(port_name, baud_rate)
             .timeout(Duration::from_millis(1000))
             .open()?;
-        Ok(AntennaController { port })
-    }
 
-    /// Sends data to the antenna.
-    pub fn send(
+        Ok(Self { port })
+    }
+}
+
+impl AntennaController for SerialAntennaController {
+    fn send(
         &mut self,
         azimuth: f64,
         elevation: f64,
