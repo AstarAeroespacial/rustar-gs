@@ -6,11 +6,17 @@ use predict_rs::{
     consts::{DEG_TO_RAD, RAD_TO_DEG},
     observer::{self, get_passes},
     orbit,
-    predict::{ObserverElements, Pass, PredictObserver},
+    predict::{ObserverElements, PredictObserver},
 };
 
 pub type Degrees = f64;
 pub type Meters = f64;
+
+#[derive(Clone, Copy)]
+pub struct Pass {
+    pub start: f64,
+    pub end: f64,
+}
 
 /// The observer is the location of the ground station.
 pub struct Observer {
@@ -101,6 +107,50 @@ impl Tracker {
 
         let passes = get_passes(&oe, start_utc as f64, stop_utc as f64).ok()?;
 
-        passes.passes.into_iter().next()
+        let pass = passes.passes.into_iter().next().unwrap();
+
+        Some(Pass {
+            start: pass.aos.unwrap().time,
+            end: pass.los.unwrap().time,
+        })
     }
+}
+
+pub fn get_next_pass(
+    observer: &Observer,
+    elements: &sgp4::Elements,
+    from: DateTime<Utc>,
+    window: Duration,
+) -> Option<Pass> {
+    let observer = predict_rs::predict::PredictObserver {
+        name: "".to_string(),
+        latitude: observer.latitude * predict_rs::consts::DEG_TO_RAD,
+        longitude: observer.longitude * predict_rs::consts::DEG_TO_RAD,
+        altitude: observer.altitude,
+        min_elevation: 0.0,
+    };
+
+    let constants = sgp4::Constants::from_elements(elements)
+        .map_err(TrackerError::ElementsError)
+        .unwrap();
+
+    let oe = predict_rs::predict::ObserverElements {
+        observer: &observer,
+        elements: elements,
+        constants: &constants,
+    };
+
+    let start_utc = from.timestamp() as u64;
+    let stop_utc = start_utc + window.as_secs();
+
+    let passes = predict_rs::observer::get_passes(&oe, start_utc as f64, stop_utc as f64)
+        .ok()
+        .unwrap();
+
+    let pass = passes.passes.into_iter().next().unwrap();
+
+    Some(Pass {
+        start: pass.aos.unwrap().time,
+        end: pass.los.unwrap().time,
+    })
 }
