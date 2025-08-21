@@ -96,8 +96,8 @@ fn track(elements: tracking::Elements, ground_station: Observer, pass_end: f64) 
     // Set up the channels to communicate the actors.
     // SDR tx_samples=========rx_samples DEMODULATOR tx_bits======rx_bits DEFRAMER tx_packets====rx_packets
     let (tx_samples, rx_samples) = mpsc::channel::<Vec<Sample>>();
-    let (tx_bits, rx_bits) = mpsc::channel();
-    let (tx_packets, rx_packets) = mpsc::channel();
+    let (tx_bits, rx_bits) = mpsc::channel::<Bit>();
+    let (tx_packets, rx_packets) = mpsc::channel::<Packet>();
 
     // 3. Init SDR.
     // soapy?
@@ -159,7 +159,6 @@ fn track(elements: tracking::Elements, ground_station: Observer, pass_end: f64) 
     thread::spawn(move || {
         while let Ok(packet) = rx_packets.recv() {
             // send mqtt
-            dbg!(&packet);
         }
     });
 
