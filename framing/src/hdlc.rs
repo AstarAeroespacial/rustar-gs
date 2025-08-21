@@ -2,6 +2,7 @@ use crate::deframe::Deframer;
 
 /// An HDLC frame.
 /// TODO: document
+#[derive(Debug)]
 pub struct HdlcFrame {}
 
 pub struct HdlcDeframingIterator<I, B> {
