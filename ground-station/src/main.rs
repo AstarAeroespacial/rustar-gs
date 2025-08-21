@@ -1,11 +1,6 @@
 use antenna_controller::{self, AntennaController, SerialAntennaController};
-use hdlc::deframer::{Deframer, HdlcDeframer};
-use modem::{
-    self,
-    demodulator::{AfskGnuRadioDemodulator, Demodulator},
-};
+
 use std::{
-    path::PathBuf,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -14,12 +9,80 @@ use std::{
     thread,
     time::Duration,
 };
+
+mod hola;
+
 // use tokio_stream::Stream;
-use tracking::{self, Observation, Observer, Tracker};
+use tracking::{self, Observer, Tracker};
 
 type Sample = [u8; 8];
 
-fn main() {}
+// struct Sample;
+struct Bit;
+struct Packet;
+
+fn main() {
+    thread::spawn(|| {});
+}
+
+// #[must_use = "iterators are lazy and do nothing unless consumed"]
+
+// trait MyDemodTrait {}
+
+// trait MyDeframerTrait {}
+
+// fn track_alt(
+//     demodulator: impl MyDemodTrait,
+//     deframer: impl MyDeframerTrait,
+//     samples: impl Iterator<Item = Vec<Sample>>,
+// ) {
+//     // Set up the channels to communicate the actors.
+//     // SDR tx_samples=========rx_samples DEMODULATOR tx_bits======rx_bits DEFRAMER tx_packets====rx_packets
+//     // let (tx_bits, rx_bits) = mpsc::channel();
+//     // let (tx_packets, rx_packets) = mpsc::channel();
+
+//     let (tx_samples, rx_samples) = mpsc::channel::<Vec<Sample>>();
+
+//     // let demodulator = MyDemodulator {
+//     //     sample_input: rx_samples.iter(),
+//     // };
+
+//     // let deframer = MyDeframer {
+//     //     bit_input: demodulator,
+//     // };
+
+//     // while let Some(packet) = deframer.next() {
+//     //     todo!()
+//     // }
+
+//     for packet in deframer {
+//         todo!()
+//     }
+
+//     // thread::spawn(move || {
+//     //     let mut deframer =
+//     // });
+
+//     todo!()
+// }
+
+// pub fn track2<SampleType, D, F, FrameType, BitType>(
+//     samples: impl Iterator<Item = SampleType>,
+//     demodulator: D,
+//     deframer: F,
+// ) where
+//     D: Demodulator<SampleType, BitType>,
+//     F: Deframer<BitType, FrameType>,
+//     D::Input: Iterator<Item = SampleType>,
+//     F::Input: Iterator<Item = BitType>,
+// {
+//     let bits = demodulator.bits(samples);
+//     let frames = deframer.frames(bits);
+
+//     for frame in frames {
+//         // Procesar el frame aquí
+//     }
+// }
 
 fn track(elements: tracking::Elements, ground_station: Observer, pass_end: f64) {
     // BEGIN SETUP
@@ -40,15 +103,6 @@ fn track(elements: tracking::Elements, ground_station: Observer, pass_end: f64) 
 
     // 3. Init SDR.
     // soapy?
-
-    // 4. Init demod.
-    let demodulator = AfskGnuRadioDemodulator::build(
-        rx_samples,
-        tx_bits,
-        PathBuf::from("afks_demod"), // el path donde está el flowgraph a usar
-        None::<PathBuf>,
-    )
-    .unwrap();
 
     // END SETUP
 
@@ -84,15 +138,24 @@ fn track(elements: tracking::Elements, ground_station: Observer, pass_end: f64) 
     });
 
     // Run the demodulator.
-    thread::spawn(move || {
-        demodulator.run();
-    });
+    // thread::spawn(move || {
+    //     let demodulator = AfskGnuRadioDemodulator::build(
+    //         rx_samples,
+    //         tx_bits,
+    //         PathBuf::from("afks_demod"), // el path donde está el flowgraph a usar
+    //         None::<PathBuf>,
+    //     )
+    //     .unwrap();
+
+    //     demodulator.run();
+    // });
 
     // Run the deframer.
-    thread::spawn(move || {
-        let mut deframer = HdlcDeframer::new(rx_bits, tx_packets);
-        deframer.run();
-    });
+    // thread::spawn(move || {
+    //     let mut deframer = HdlcDeframer::new(rx_bits, tx_packets);
+
+    //     deframer.run();
+    // });
 
     // Sender.
     thread::spawn(move || {
