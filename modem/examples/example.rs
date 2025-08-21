@@ -13,7 +13,7 @@ extern crate modem;
 const SAMPLES_BATCH_SIZE: usize = 10_000;
 
 fn main() {
-    let mut reader = File::open("./modem/examples/samples.iq").unwrap();
+    /* let mut reader = File::open("./modem/examples/samples.iq").unwrap();
     let mut writer = File::create("./modem/examples/output.bit").unwrap();
 
     let flowgraph_name = "afsk_demod";
@@ -78,5 +78,5 @@ fn main() {
     drop(tx);
 
     demod_handler.join().unwrap();
-    receiver_handler.join().unwrap();
+    receiver_handler.join().unwrap(); */
 }
