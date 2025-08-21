@@ -1,4 +1,4 @@
-use antenna_controller::AntennaController;
+use antenna_controller::{AntennaController, SerialAntennaController};
 use std::io::{BufRead, BufReader};
 use std::thread;
 use std::time::Duration;
@@ -18,7 +18,7 @@ fn main() {
 
     // Sender thread
     let sender = thread::spawn(move || {
-        let mut controller = AntennaController::new(&sender_port, baud_rate)
+        let mut controller = SerialAntennaController::new(&sender_port, baud_rate)
             .expect("Failed to open serial port (sender)");
 
         // Ejemplo de envío con los nuevos argumentos
@@ -31,7 +31,7 @@ fn main() {
 
     // Receiver thread
     let receiver = thread::spawn(move || {
-        let mut controller = AntennaController::new(&receiver_port, baud_rate)
+        let mut controller = SerialAntennaController::new(&receiver_port, baud_rate)
             .expect("Failed to open serial port (receiver)");
 
         thread::sleep(Duration::from_millis(500));
