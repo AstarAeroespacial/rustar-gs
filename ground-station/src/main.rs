@@ -1,171 +1,126 @@
 use antenna_controller::{self, AntennaController, SerialAntennaController};
-
+use chrono::Utc;
+use framing::deframe::Deframer;
+use framing::hdlc::HdlcDeframer;
+use modem::{Demodulator, afsk1200::AfskDemodulator};
 use std::{
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
         mpsc,
     },
     thread,
     time::Duration,
 };
+use tracking::{Pass, Tracker, get_next_pass};
 
-// use tokio_stream::Stream;
-use tracking::{self, Observer, Tracker};
+#[tokio::main]
+async fn main() {
+    let observer = tracking::Observer::new(-34.6, -58.4, 2.5);
+    let elements = tracking::Elements::from_tle(
+        Some("ISS (ZARYA)".to_owned()),
+        "1 25544U 98067A   25186.50618345  .00006730  00000+0  12412-3 0  9992".as_bytes(),
+        "2 25544  51.6343 216.2777 0002492 336.9059  23.1817 15.50384048518002".as_bytes(),
+    )
+    .unwrap();
 
-type Sample = [u8; 8];
+    let mut next_pass = get_next_pass(
+        &observer,
+        &elements,
+        Utc::now(),
+        Duration::from_secs_f64(3600.0 * 6.0),
+    )
+    .unwrap();
 
-// struct Sample;
-struct Bit;
-struct Packet;
+    let mut timer = get_duration_until_pass(next_pass);
 
-fn main() {
-    thread::spawn(|| {});
-}
+    let sleep = tokio::time::sleep(timer);
+    tokio::pin!(sleep);
 
-// #[must_use = "iterators are lazy and do nothing unless consumed"]
+    loop {
+        tokio::select! {
+            _ = &mut sleep => {
 
-// trait MyDemodTrait {}
+                // SETUP TRACK
+                let stop = Arc::new(AtomicBool::new(false));
 
-// trait MyDeframerTrait {}
+                let (tx_samples, rx_samples) = mpsc::channel();
 
-// fn track_alt(
-//     demodulator: impl MyDemodTrait,
-//     deframer: impl MyDeframerTrait,
-//     samples: impl Iterator<Item = Vec<Sample>>,
-// ) {
-//     // Set up the channels to communicate the actors.
-//     // SDR tx_samples=========rx_samples DEMODULATOR tx_bits======rx_bits DEFRAMER tx_packets====rx_packets
-//     // let (tx_bits, rx_bits) = mpsc::channel();
-//     // let (tx_packets, rx_packets) = mpsc::channel();
+                let demodulator = AfskDemodulator::new();
+                let deframer = HdlcDeframer::new();
 
-//     let (tx_samples, rx_samples) = mpsc::channel::<Vec<Sample>>();
+                let tracker = Tracker::new(&observer, elements.clone()).unwrap();
 
-//     // let demodulator = MyDemodulator {
-//     //     sample_input: rx_samples.iter(),
-//     // };
+                let controller = Arc::new(Mutex::new(
+                    SerialAntennaController::new("/dev/pts/2", 9600).unwrap(),
+                ));
+                // END SETUP TRACK
 
-//     // let deframer = MyDeframer {
-//     //     bit_input: demodulator,
-//     // };
+                // BEGIN TRACKING
+                let bits = demodulator.bits(rx_samples.iter());
+                let frames = deframer.frames(bits);
 
-//     // while let Some(packet) = deframer.next() {
-//     //     todo!()
-//     // }
+                let stop_clone = stop.clone();
+                let sdr_handle = thread::spawn(move || {
+                    while !stop_clone.load(Ordering::Relaxed) {
+                        tx_samples.send(0f64).unwrap();
+                    }
+                });
 
-//     for packet in deframer {
-//         todo!()
-//     }
+                let stop_clone = stop.clone();
+                let pass_end = next_pass.end;
+                let controller_clone = controller.clone();
 
-//     // thread::spawn(move || {
-//     //     let mut deframer =
-//     // });
+                let tracker_handle = thread::spawn(move || {
+                    loop {
+                        let now = chrono::Utc::now();
 
-//     todo!()
-// }
+                        if now.timestamp() as f64 > pass_end {
+                            // pass has ended
+                            stop_clone.store(true, Ordering::Relaxed);
+                            break;
+                        }
 
-// pub fn track2<SampleType, D, F, FrameType, BitType>(
-//     samples: impl Iterator<Item = SampleType>,
-//     demodulator: D,
-//     deframer: F,
-// ) where
-//     D: Demodulator<SampleType, BitType>,
-//     F: Deframer<BitType, FrameType>,
-//     D::Input: Iterator<Item = SampleType>,
-//     F::Input: Iterator<Item = BitType>,
-// {
-//     let bits = demodulator.bits(samples);
-//     let frames = deframer.frames(bits);
+                        let obs = tracker.track(now).unwrap();
 
-//     for frame in frames {
-//         // Procesar el frame aquí
-//     }
-// }
+                        controller_clone
+                            .lock()
+                            .unwrap()
+                            .send(obs.azimuth, obs.elevation, "sat-name", 1000)
+                            .unwrap();
 
-fn track(elements: tracking::Elements, ground_station: Observer, pass_end: f64) {
-    // BEGIN SETUP
-    let stop = Arc::new(AtomicBool::new(false));
+                        thread::sleep(Duration::from_millis(1000));
+                    }
+                });
 
-    // 1. Create tracker.
-    let tracker = Tracker::new(&ground_station, elements).unwrap();
+                for frame in frames {
+                    dbg!(&frame);
+                }
 
-    // 2. Init antenna controller.
-    let port = "/dev/pts/2".to_string();
-    let mut controller = SerialAntennaController::new(&port, 9600).unwrap();
+                tracker_handle.join().unwrap();
+                sdr_handle.join().unwrap();
 
-    // Set up the channels to communicate the actors.
-    // SDR tx_samples=========rx_samples DEMODULATOR tx_bits======rx_bits DEFRAMER tx_packets====rx_packets
-    let (tx_samples, rx_samples) = mpsc::channel::<Vec<Sample>>();
-    let (tx_bits, rx_bits) = mpsc::channel();
-    let (tx_packets, rx_packets) = mpsc::channel();
+                // END TRACKING
 
-    // 3. Init SDR.
-    // soapy?
-
-    // END SETUP
-
-    // send samples to tx_samples
-    let stop_clone = stop.clone();
-    let sdr_handler = thread::spawn(move || {
-        while !stop_clone.load(Ordering::Relaxed) {
-            tx_samples.send(vec![[0u8; 8]]).unwrap();
-        }
-        drop(tx_samples);
-    });
-
-    // Run the tracker.
-    let stop_clone = stop.clone();
-    let tracker_handler = thread::spawn(move || {
-        loop {
-            let now = chrono::Utc::now();
-
-            if now.timestamp() as f64 > pass_end {
-                // pass has ended
-                stop_clone.store(true, Ordering::Relaxed);
-                break;
-            }
-
-            let obs = tracker.track(now).unwrap();
-
-            controller
-                .send(obs.azimuth, obs.elevation, "sat-name", 1000)
+                next_pass = get_next_pass(
+                    &observer,
+                    &elements,
+                    Utc::now(),
+                    Duration::from_secs_f64(3600.0 * 6.0),
+                )
                 .unwrap();
 
-            thread::sleep(Duration::from_millis(1000));
+                timer = get_duration_until_pass(next_pass);
+
+                sleep.as_mut().reset(tokio::time::Instant::now() + timer);
+            }
         }
-    });
+    }
+}
 
-    // Run the demodulator.
-    // thread::spawn(move || {
-    //     let demodulator = AfskGnuRadioDemodulator::build(
-    //         rx_samples,
-    //         tx_bits,
-    //         PathBuf::from("afks_demod"), // el path donde está el flowgraph a usar
-    //         None::<PathBuf>,
-    //     )
-    //     .unwrap();
+fn get_duration_until_pass(pass: Pass) -> Duration {
+    let now = chrono::Utc::now();
+    let now_timestamp = now.timestamp() as f64;
 
-    //     demodulator.run();
-    // });
-
-    // Run the deframer.
-    // thread::spawn(move || {
-    //     let mut deframer = HdlcDeframer::new(rx_bits, tx_packets);
-
-    //     deframer.run();
-    // });
-
-    // Sender.
-    thread::spawn(move || {
-        while let Ok(packet) = rx_packets.recv() {
-            // send mqtt
-            dbg!(&packet);
-        }
-    });
-
-    tracker_handler.join().unwrap();
-    sdr_handler.join().unwrap();
-    // demod_handler.join().unwrap();
-    // deframer_handler.join().unwrap();
-    // sender_handler.join().unwrap();
+    Duration::from_secs_f64(pass.start - now_timestamp)
 }
