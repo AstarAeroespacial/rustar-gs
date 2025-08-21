@@ -14,7 +14,7 @@ pub trait AntennaController {
 
 /// A controller for an antenna, allowing communication via a serial port.
 pub struct SerialAntennaController {
-    port: Box<dyn SerialPort>,
+    pub port: Box<dyn SerialPort>,
 }
 
 impl SerialAntennaController {
