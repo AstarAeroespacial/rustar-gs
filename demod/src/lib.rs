@@ -1,4 +1,4 @@
-mod example;
+pub mod example;
 
 pub trait Demodulator<I>
 where

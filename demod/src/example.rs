@@ -2,6 +2,12 @@ use crate::Demodulator;
 
 pub struct ExampleDemod {}
 
+impl ExampleDemod {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 pub struct ExampleDemodIterator<I>
 where
     I: Iterator<Item = f64>,
@@ -19,7 +25,7 @@ where
         if self.inner.next().is_some() {
             Some(true)
         } else {
-            Some(false)
+            None
         }
     }
 }
@@ -46,6 +52,6 @@ mod tests {
 
         assert_eq!(bits.next(), Some(true));
         assert_eq!(bits.next(), Some(true));
-        assert_eq!(bits.next(), Some(false));
+        assert_eq!(bits.next(), None);
     }
 }
