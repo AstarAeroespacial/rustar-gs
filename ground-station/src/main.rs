@@ -10,6 +10,7 @@ use std::{
     thread,
     time::Duration,
 };
+use tokio::task::spawn_blocking;
 use tracking::{Tracker, get_next_pass};
 mod time;
 
@@ -54,68 +55,72 @@ async fn main() {
     loop {
         tokio::select! {
             _ = &mut sleep => {
-
                 println!("\nSTARTING PASS\n");
 
-                // SETUP TRACK
-                let stop = Arc::new(AtomicBool::new(false));
-
-                let (tx_samples, rx_samples) = mpsc::channel();
-
-                let demodulator = ExampleDemod::new();
-                let deframer = MockDeframer::new();
                 let tracker = Tracker::new(&observer, elements.clone()).unwrap();
 
-                let observations = [0u8; 5]
-                    .iter()
-                    .map(|_| thread::sleep(Duration::from_secs(1)))
-                    .map(move |_| {
-                        tracker.track(Clock::now()).unwrap()
+                spawn_blocking(move || {
+
+                    // SETUP TRACK
+                    let stop = Arc::new(AtomicBool::new(false));
+
+                    let (tx_samples, rx_samples) = mpsc::channel();
+
+                    let demodulator = ExampleDemod::new();
+                    let deframer = MockDeframer::new();
+
+                    let observations = [0u8; 5]
+                        .iter()
+                        .map(|_| thread::sleep(Duration::from_secs(1)))
+                        .map(move |_| {
+                            tracker.track(Clock::now()).unwrap()
+                        });
+
+
+                    let controller = Arc::new(Mutex::new(
+                        MockController
+                    ));
+                    // END SETUP TRACK
+
+                    // BEGIN TRACKING
+                    let bits = demodulator.bits(rx_samples.iter());
+                    let frames = deframer.frames(bits);
+
+                    let stop_clone = stop.clone();
+                    let sdr_handle = thread::spawn(move || {
+                        while !stop_clone.load(Ordering::Relaxed) {
+                            tx_samples.send(0f64).unwrap();
+                            thread::sleep(Duration::from_millis(200));
+                        }
                     });
 
+                    let stop_clone = stop.clone();
+                    let controller_clone = controller.clone();
 
-                let controller = Arc::new(Mutex::new(
-                    MockController
-                ));
-                // END SETUP TRACK
+                    let tracker_handle = thread::spawn(move || {
+                        for obs in observations {
+                            dbg!(&obs);
 
-                // BEGIN TRACKING
-                let bits = demodulator.bits(rx_samples.iter());
-                let frames = deframer.frames(bits);
+                            controller_clone
+                                .lock()
+                                .unwrap()
+                                .send(obs.azimuth, obs.elevation, "sat-name", 1000)
+                                .unwrap();
+                        }
 
-                let stop_clone = stop.clone();
-                let sdr_handle = thread::spawn(move || {
-                    while !stop_clone.load(Ordering::Relaxed) {
-                        tx_samples.send(0f64).unwrap();
-                        thread::sleep(Duration::from_millis(200));
-                    }
-                });
+                        println!("\nPass ended, stopping SDR and tracker.\n");
 
-                let stop_clone = stop.clone();
-                let controller_clone = controller.clone();
+                        stop_clone.store(true, Ordering::Relaxed);
+                    });
 
-                let tracker_handle = thread::spawn(move || {
-                    for obs in observations {
-                        dbg!(&obs);
-
-                        controller_clone
-                            .lock()
-                            .unwrap()
-                            .send(obs.azimuth, obs.elevation, "sat-name", 1000)
-                            .unwrap();
+                    for frame in frames {
+                        dbg!(&frame);
                     }
 
-                    println!("\nPass ended, stopping SDR and tracker.\n");
+                    tracker_handle.join().unwrap();
+                    sdr_handle.join().unwrap();
 
-                    stop_clone.store(true, Ordering::Relaxed);
-                });
-
-                for frame in frames {
-                    dbg!(&frame);
-                }
-
-                tracker_handle.join().unwrap();
-                sdr_handle.join().unwrap();
+                }).await.unwrap();
 
                 // END TRACKING
 
