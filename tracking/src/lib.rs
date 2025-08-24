@@ -12,7 +12,7 @@ use predict_rs::{
 pub type Degrees = f64;
 pub type Meters = f64;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Pass {
     pub start: f64,
     pub end: f64,
