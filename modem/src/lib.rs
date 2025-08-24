@@ -1,8 +1,13 @@
-mod demodulator;
-mod modulator;
+pub mod afsk1200;
+pub mod demodulator;
+pub mod modulator;
 
-pub use demodulator::Demodulator;
-pub use modulator::Modulator;
+/// `S`: type of the samples input.
+///
+/// `B`: type of the returned bits.
+pub trait Demodulator<S, B> {
+    type Input: Iterator<Item = S>;
+    type Output: Iterator<Item = B>;
 
-trait BitSink {}
-trait SampleSource {}
+    fn bits(&self, input: Self::Input) -> Self::Output;
+}

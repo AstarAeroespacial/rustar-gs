@@ -6,6 +6,12 @@ use std::{
     thread,
 };
 
+pub trait Demodulator {
+    fn run(self);
+}
+
+// TODO: blanket implementation of Stream for Demodulator
+
 // Each IQ sample is an imaginary number.
 // Both real and imaginary parts are an f32.
 // TODO: this may not be true for all SDR frontends... make generic.
@@ -20,7 +26,7 @@ type Bit = bool;
 
 // TODO: add telemetry/counters with batch sizes and stuff like that.
 // Count samples received and bits sent.
-pub struct Demodulator {
+pub struct AfskGnuRadioDemodulator {
     // from where the samples are read, as batches of [u8; 8]
     pub reader: Receiver<Vec<Sample>>,
     // to where we write the bits, as batches of bools
@@ -46,7 +52,7 @@ pub enum DemodulatorError {
 
 // TODO: builder OR optional method to add python path
 // TODO: builder, build on one step, begin execution of the flowgraph on another
-impl Demodulator {
+impl AfskGnuRadioDemodulator {
     // TODO: can fail!!
     pub fn build(
         reader: Receiver<Vec<Sample>>,
@@ -74,8 +80,10 @@ impl Demodulator {
             python_proc: child,
         })
     }
+}
 
-    pub fn run(self) {
+impl Demodulator for AfskGnuRadioDemodulator {
+    fn run(self) {
         // sends the samples to the flowgraph via zmq
         let sender_handle = thread::spawn(move || {
             let context = zmq::Context::new();
