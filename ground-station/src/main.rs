@@ -69,8 +69,7 @@ async fn main() {
                     let demodulator = ExampleDemod::new();
                     let deframer = MockDeframer::new();
 
-                    let observations = [0u8; 5]
-                        .iter()
+                    let observations = (0..).take(5)
                         .map(|_| thread::sleep(Duration::from_secs(1)))
                         .map(move |_| {
                             tracker.track(Clock::now()).unwrap()
