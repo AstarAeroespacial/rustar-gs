@@ -1,3 +1,10 @@
 [workspace]
-members = ["tracking", "hdlc", "antenna-controller", "modem", "ground-station", "framing", "demod"]
+members = [
+    "tracking",
+    "hdlc",
+    "antenna-controller",
+    "ground-station",
+    "framing",
+    "demod",
+]
 resolver = "3"
