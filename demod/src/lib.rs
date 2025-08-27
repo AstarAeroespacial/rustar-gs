@@ -1,4 +1,5 @@
 pub mod afsk1200;
+pub mod example;
 
 pub trait Demodulator<I>
 where
