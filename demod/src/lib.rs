@@ -1,10 +1,10 @@
-pub mod example;
+pub mod afsk1200;
 
 pub trait Demodulator<I>
 where
-    I: Iterator<Item = f64>,
+    I: Iterator<Item = Vec<f64>>,
 {
-    type Output: Iterator<Item = bool>;
+    type Output: Iterator<Item = Vec<bool>>;
 
     fn bits(&self, input: I) -> Self::Output;
 }
