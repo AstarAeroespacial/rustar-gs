@@ -10,20 +10,20 @@ impl ExampleDemod {
 
 pub struct ExampleDemodIterator<I>
 where
-    I: Iterator<Item = f64>,
+    I: Iterator<Item = Vec<f64>>,
 {
     inner: I,
 }
 
 impl<I> Iterator for ExampleDemodIterator<I>
 where
-    I: Iterator<Item = f64>,
+    I: Iterator<Item = Vec<f64>>,
 {
-    type Item = bool;
+    type Item = Vec<bool>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.inner.next().is_some() {
-            Some(true)
+            Some(vec![true])
         } else {
             None
         }
@@ -32,7 +32,7 @@ where
 
 impl<I> Demodulator<I> for ExampleDemod
 where
-    I: Iterator<Item = f64>,
+    I: Iterator<Item = Vec<f64>>,
 {
     type Output = ExampleDemodIterator<I>;
 
@@ -48,10 +48,10 @@ mod tests {
     #[test]
     fn example() {
         let demodulator = ExampleDemod {};
-        let mut bits = demodulator.bits(vec![1f64, 2f64].into_iter());
+        let mut bits = demodulator.bits(vec![vec![1f64], vec![2f64]].into_iter());
 
-        assert_eq!(bits.next(), Some(true));
-        assert_eq!(bits.next(), Some(true));
+        assert_eq!(bits.next(), Some(vec![true]));
+        assert_eq!(bits.next(), Some(vec![true]));
         assert_eq!(bits.next(), None);
     }
 }

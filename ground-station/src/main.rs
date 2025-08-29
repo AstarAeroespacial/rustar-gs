@@ -88,7 +88,7 @@ async fn main() {
                     let stop_clone = stop.clone();
                     let sdr_handle = thread::spawn(move || {
                         while !stop_clone.load(Ordering::Relaxed) {
-                            tx_samples.send(0f64).unwrap();
+                            tx_samples.send(vec![0f64]).unwrap();
                             thread::sleep(Duration::from_millis(200));
                         }
                     });
