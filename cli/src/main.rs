@@ -1,3 +1,8 @@
+use std::{
+    io::{Read, Write},
+    net::TcpStream,
+};
+
 use clap::{Parser, Subcommand};
 
 /// Ground Station CLI
@@ -86,11 +91,39 @@ fn execute_command(command: &Commands) -> Result<String, String> {
 fn main() {
     let args = Args::parse();
 
-    let command_string = match execute_command(&args.command) {
+    let command = match execute_command(&args.command) {
         Ok(cmd) => cmd,
         Err(e) => {
             eprintln!("{}", e);
             return;
         }
     };
+
+    match TcpStream::connect("") {
+        Ok(mut stream) => {
+            if let Err(e) = stream.write_all(command.as_bytes()) {
+                eprintln!("Error sending command: {}", e);
+                return;
+            }
+
+            let mut response = String::new();
+            match stream.read_to_string(&mut response) {
+                Ok(_) => {
+                    let response = response.trim();
+                    if !response.is_empty() {
+                        println!("Response from ground station: {}", response);
+                    } else {
+                        println!("Command sent successfully");
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error reading response: {}", e);
+                }
+            }
+        }
+        Err(_) => {
+            eprintln!("Error connecting to ground station");
+            std::process::exit(1);
+        }
+    }
 }
