@@ -1,3 +1,4 @@
+pub use sgp4::Elements;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -5,11 +6,17 @@ use predict_rs::{
     consts::{DEG_TO_RAD, RAD_TO_DEG},
     observer::{self, get_passes},
     orbit,
-    predict::{ObserverElements, Pass, PredictObserver},
+    predict::{ObserverElements, PredictObserver},
 };
 
 pub type Degrees = f64;
 pub type Meters = f64;
+
+#[derive(Clone, Copy, Debug)]
+pub struct Pass {
+    pub start: f64,
+    pub end: f64,
+}
 
 /// The observer is the location of the ground station.
 pub struct Observer {
@@ -47,17 +54,17 @@ pub enum TrackerError {
 }
 
 /// The tracker is used to predict the position of a satellite, given its orbital elements, relative to the ground station.
-pub struct Tracker<'a> {
+pub struct Tracker {
     observer: PredictObserver,
-    elements: &'a sgp4::Elements,
+    elements: sgp4::Elements,
     constants: sgp4::Constants,
 }
 
-impl<'a> Tracker<'a> {
+impl Tracker {
     /// Create a new tracker given the observer and the satellite's orbital elements.
-    pub fn new(observer: &Observer, elements: &'a sgp4::Elements) -> Result<Self, TrackerError> {
+    pub fn new(observer: &Observer, elements: sgp4::Elements) -> Result<Self, TrackerError> {
         let constants =
-            sgp4::Constants::from_elements(elements).map_err(TrackerError::ElementsError)?;
+            sgp4::Constants::from_elements(&elements).map_err(TrackerError::ElementsError)?;
 
         let observer = PredictObserver {
             name: "".to_string(),
@@ -76,7 +83,7 @@ impl<'a> Tracker<'a> {
 
     /// Predict the observation of the satellite at a given time.
     pub fn track(&self, at: DateTime<Utc>) -> Result<Observation, TrackerError> {
-        let orbit = orbit::predict_orbit(self.elements, &self.constants, at.timestamp() as f64)
+        let orbit = orbit::predict_orbit(&self.elements, &self.constants, at.timestamp() as f64)
             .map_err(TrackerError::OrbitPredictionError)?;
 
         let observation = observer::predict_observe_orbit(&self.observer, &orbit);
@@ -91,7 +98,7 @@ impl<'a> Tracker<'a> {
     pub fn next_pass(&self, from: DateTime<Utc>, window: Duration) -> Option<Pass> {
         let oe = ObserverElements {
             observer: &self.observer,
-            elements: self.elements,
+            elements: &self.elements,
             constants: &self.constants,
         };
 
@@ -100,6 +107,50 @@ impl<'a> Tracker<'a> {
 
         let passes = get_passes(&oe, start_utc as f64, stop_utc as f64).ok()?;
 
-        passes.passes.into_iter().next()
+        let pass = passes.passes.into_iter().next().unwrap();
+
+        Some(Pass {
+            start: pass.aos.unwrap().time,
+            end: pass.los.unwrap().time,
+        })
     }
+}
+
+pub fn get_next_pass(
+    observer: &Observer,
+    elements: &sgp4::Elements,
+    from: DateTime<Utc>,
+    window: Duration,
+) -> Option<Pass> {
+    let observer = predict_rs::predict::PredictObserver {
+        name: "".to_string(),
+        latitude: observer.latitude * predict_rs::consts::DEG_TO_RAD,
+        longitude: observer.longitude * predict_rs::consts::DEG_TO_RAD,
+        altitude: observer.altitude,
+        min_elevation: 0.0,
+    };
+
+    let constants = sgp4::Constants::from_elements(elements)
+        .map_err(TrackerError::ElementsError)
+        .unwrap();
+
+    let oe = predict_rs::predict::ObserverElements {
+        observer: &observer,
+        elements: elements,
+        constants: &constants,
+    };
+
+    let start_utc = from.timestamp() as u64;
+    let stop_utc = start_utc + window.as_secs();
+
+    let passes = predict_rs::observer::get_passes(&oe, start_utc as f64, stop_utc as f64)
+        .ok()
+        .unwrap();
+
+    let pass = passes.passes.into_iter().next().unwrap();
+
+    Some(Pass {
+        start: pass.aos.unwrap().time,
+        end: pass.los.unwrap().time,
+    })
 }

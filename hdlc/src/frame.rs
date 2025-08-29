@@ -1,6 +1,6 @@
 use crc_any::CRCu16;
 
-type Bit = bool;
+pub(crate) type Bit = bool;
 pub(crate) type Byte = u8;
 
 /// Unnumbered format commands/responses.
@@ -19,7 +19,7 @@ pub(crate) enum Control {
 }
 
 #[derive(Debug)]
-pub(crate) enum DeframingError {
+pub enum DeframingError {
     InvalidControlFrameType,
     InvalidControlUnnumberedType,
     InvalidFrameSize,

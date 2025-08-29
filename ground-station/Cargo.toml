@@ -1,0 +1,16 @@
+[package]
+name = "ground-station"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+time_mock = []
+
+[dependencies]
+tracking = { path = "../tracking" }
+antenna-controller = { path = "../antenna-controller" }
+demod = { path = "../demod" }
+hdlc = { path = "../hdlc" }
+framing = { path = "../framing" }
+chrono = "0.4.41"
+tokio = { version = "1.47.1", features = ["full"] }
