@@ -10,7 +10,7 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Get current TLE (Two Line Elements)
+    /// Get current TLE
     #[command(name = "get-tle")]
     GetTle,
 
@@ -52,42 +52,45 @@ fn parse_tle(tle_data: &str) -> Result<(String, String, String), String> {
     Ok((name, line1, line2))
 }
 
-fn main() {
-    let args = Args::parse();
-
-    match args.command {
+fn execute_command(command: &Commands) -> Result<String, String> {
+    match command {
         Commands::GetTle => {
-            println!("Getting current TLE...");
-            // Implementar lógica para obtener TLE
+            println!("Getting current TLE from ground station...");
+            Ok("GET_TLE".to_string())
         }
-        Commands::SetTle { tle_data } => {
-            match parse_tle(&tle_data) {
-                Ok((name, line1, line2)) => {
-                    println!("Setting TLE:");
-                    println!("Name: {}", name);
-                    println!("Line 1: {}", line1);
-                    println!("Line 2: {}", line2);
-                    // Implementar lógica para guardar TLE
-                }
-                Err(e) => {
-                    eprintln!("Error parsing TLE: {}", e);
-                }
+        Commands::SetTle { tle_data } => match parse_tle(&tle_data) {
+            Ok((name, line1, line2)) => {
+                println!("Setting TLE on ground station...");
+                Ok(format!("SET_TLE|{}|{}|{}", name, line1, line2))
             }
-        }
+            Err(e) => Err(format!("Error parsing TLE: {}", e)),
+        },
         Commands::GetLocation => {
-            println!("Getting current location...");
-            // Implementar lógica para obtener ubicación
+            println!("Getting current location from ground station...");
+            Ok("GET_LOCATION".to_string())
         }
         Commands::SetLocation {
             latitude,
             longitude,
             altitude,
         } => {
-            println!("Setting location:");
-            println!("Latitude: {:.6}°", latitude);
-            println!("Longitude: {:.6}°", longitude);
-            println!("Altitude: {:.1} m", altitude);
-            // Implementar lógica para guardar ubicación
+            println!("Setting location on ground station...");
+            Ok(format!(
+                "SET_LOCATION|{}|{}|{}",
+                latitude, longitude, altitude
+            ))
         }
     }
+}
+
+fn main() {
+    let args = Args::parse();
+
+    let command_string = match execute_command(&args.command) {
+        Ok(cmd) => cmd,
+        Err(e) => {
+            eprintln!("{}", e);
+            return;
+        }
+    };
 }
