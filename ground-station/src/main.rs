@@ -56,6 +56,8 @@ async fn main() {
     let sleep = tokio::time::sleep(timer);
     tokio::pin!(sleep);
 
+    let listener = TcpListener::bind("localhost:9999").await.unwrap();
+
     loop {
         tokio::select! {
             maybe_conn = listener.accept() => {
