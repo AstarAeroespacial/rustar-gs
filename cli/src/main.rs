@@ -1,10 +1,28 @@
 use std::{
+    fmt,
     io::{Read, Write},
     net::TcpStream,
 };
 
 use clap::{Parser, Subcommand};
 use tracking::{Elements, Observer};
+
+#[derive(Debug)]
+enum CliError {
+    ElementsParseError,
+    SerializationError,
+    InvalidElementsFormat,
+}
+
+impl fmt::Display for CliError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CliError::ElementsParseError => write!(f, "Error parsing Elements"),
+            CliError::SerializationError => write!(f, "SError serializing data"),
+            CliError::InvalidElementsFormat => write!(f, "Invalid Elements format"),
+        }
+    }
+}
 
 /// Ground Station CLI
 #[derive(Parser, Debug)]
@@ -16,24 +34,24 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Get current TLE
-    #[command(name = "get-tle")]
-    GetTle,
+    /// Get current Elements
+    #[command(name = "get-elements")]
+    GetElements,
 
-    /// Set TLE with complete TLE data (name and two lines)
-    #[command(name = "set-tle")]
-    SetTle {
-        /// Complete TLE data: name, line1, and line2 separated by newlines
-        tle_data: String,
+    /// Set Elements with complete Elements data (name and two lines)
+    #[command(name = "set-elements")]
+    SetElements {
+        /// Elements data (name and two lines)
+        elements: String,
     },
 
-    /// Get current location coordinates
-    #[command(name = "get-location")]
-    GetLocation,
+    /// Get current observer coordinates
+    #[command(name = "get-observer")]
+    GetObserver,
 
-    /// Set location coordinates
-    #[command(name = "set-location")]
-    SetLocation {
+    /// Set observer coordinates
+    #[command(name = "set-observer")]
+    SetObserver {
         /// Latitude in degrees
         latitude: f64,
         /// Longitude in degrees
@@ -44,50 +62,52 @@ enum Commands {
     },
 }
 
-fn parse_tle(tle_data: &str) -> Result<Elements, String> {
-    let lines: Vec<&str> = tle_data.lines().collect();
+fn parse_elements(elements: &str) -> Result<Elements, CliError> {
+    let lines: Vec<&str> = elements.lines().collect();
 
     if lines.len() < 3 {
-        return Err("TLE data must contain at least 3 lines (name, line1, line2)".to_string());
+        return Err(CliError::InvalidElementsFormat);
     }
 
     let name = lines[0].trim().to_string();
     let line1 = lines[1].trim().to_string();
     let line2 = lines[2].trim().to_string();
 
-    let e = Elements::from_tle(Some(name), line1.as_bytes(), line2.as_bytes()).unwrap();
+    let e = Elements::from_tle(Some(name), line1.as_bytes(), line2.as_bytes())
+        .map_err(|_| CliError::ElementsParseError)?;
 
     Ok(e)
 }
 
-fn execute_command(command: &Commands) -> Result<String, String> {
+fn execute_command(command: &Commands) -> Result<String, CliError> {
     match command {
-        Commands::GetTle => {
-            println!("Getting current TLE from ground station...");
-            Ok("GET_TLE".to_string())
+        Commands::GetElements => {
+            println!("Getting current Elements from ground station...");
+            Ok("GET_ELEMENTS".to_string())
         }
-        Commands::SetTle { tle_data } => match parse_tle(&tle_data) {
+        Commands::SetElements { elements } => match parse_elements(&elements) {
             Ok(element) => {
-                println!("Setting TLE on ground station...");
+                println!("Setting Elements on ground station...");
 
-                let element_json = serde_json::to_string(&element).unwrap();
-                Ok(format!("SET_TLE={}", element_json))
+                let element_json =
+                    serde_json::to_string(&element).map_err(|_| CliError::SerializationError)?;
+                Ok(format!("SET_ELEMENTS={}", element_json))
             }
-            Err(e) => Err(format!("Error parsing TLE: {}", e)),
+            Err(e) => Err(e),
         },
-        Commands::GetLocation => {
-            println!("Getting current location from ground station...");
-            Ok("GET_LOCATION".to_string())
+        Commands::GetObserver => {
+            println!("Getting current observer from ground station...");
+            Ok("GET_OBSERVER".to_string())
         }
-        Commands::SetLocation {
+        Commands::SetObserver {
             latitude,
             longitude,
             altitude,
         } => {
-            println!("Setting location on ground station...");
+            println!("Setting observre on ground station...");
             let obs = Observer::new(*latitude, *longitude, *altitude);
-            let obs_json = serde_json::to_string(&obs).unwrap();
-            Ok(format!("SET_LOCATION={}", obs_json))
+            let obs_json = serde_json::to_string(&obs).map_err(|_| CliError::SerializationError)?;
+            Ok(format!("SET_OBSERVER={}", obs_json))
         }
     }
 }
@@ -99,7 +119,7 @@ fn main() {
         Ok(cmd) => cmd,
         Err(e) => {
             eprintln!("{}", e);
-            return;
+            std::process::exit(1);
         }
     };
 
@@ -107,7 +127,7 @@ fn main() {
         Ok(mut stream) => {
             if let Err(e) = stream.write_all(command.as_bytes()) {
                 eprintln!("Error sending command: {}", e);
-                return;
+                std::process::exit(1);
             }
 
             let mut response = String::new();
@@ -122,11 +142,12 @@ fn main() {
                 }
                 Err(e) => {
                     eprintln!("Error reading response: {}", e);
+                    std::process::exit(1);
                 }
             }
         }
-        Err(_) => {
-            eprintln!("Error connecting to ground station");
+        Err(e) => {
+            eprintln!("Error connecting to ground station: {}", e);
             std::process::exit(1);
         }
     }
