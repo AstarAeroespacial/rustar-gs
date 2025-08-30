@@ -68,6 +68,8 @@ enum Commands {
         #[arg(short, long, default_value_t = 0.0)]
         altitude: f64,
     },
+    #[command(name = "set-observer")]
+    Ping,
 }
 
 /// Parse Elements from a string containing name and two lines
@@ -118,6 +120,10 @@ fn execute_command(command: &Commands) -> Result<String, CliError> {
             let obs = Observer::new(*latitude, *longitude, *altitude);
             let obs_json = serde_json::to_string(&obs).map_err(|_| CliError::SerializationError)?;
             Ok(format!("SET_OBSERVER={}", obs_json))
+        }
+        Commands::Ping => {
+            println!("Pinging ground station...");
+            Ok("PING".to_string())
         }
     }
 }
