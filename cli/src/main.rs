@@ -4,6 +4,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
+use tracking::{Elements, Observer};
 
 /// Ground Station CLI
 #[derive(Parser, Debug)]
@@ -43,7 +44,7 @@ enum Commands {
     },
 }
 
-fn parse_tle(tle_data: &str) -> Result<(String, String, String), String> {
+fn parse_tle(tle_data: &str) -> Result<Elements, String> {
     let lines: Vec<&str> = tle_data.lines().collect();
 
     if lines.len() < 3 {
@@ -54,7 +55,9 @@ fn parse_tle(tle_data: &str) -> Result<(String, String, String), String> {
     let line1 = lines[1].trim().to_string();
     let line2 = lines[2].trim().to_string();
 
-    Ok((name, line1, line2))
+    let e = Elements::from_tle(Some(name), line1.as_bytes(), line2.as_bytes()).unwrap();
+
+    Ok(e)
 }
 
 fn execute_command(command: &Commands) -> Result<String, String> {
@@ -64,9 +67,11 @@ fn execute_command(command: &Commands) -> Result<String, String> {
             Ok("GET_TLE".to_string())
         }
         Commands::SetTle { tle_data } => match parse_tle(&tle_data) {
-            Ok((name, line1, line2)) => {
+            Ok(element) => {
                 println!("Setting TLE on ground station...");
-                Ok(format!("SET_TLE|{}|{}|{}", name, line1, line2))
+
+                let element_json = serde_json::to_string(&element).unwrap();
+                Ok(format!("SET_TLE={}", element_json))
             }
             Err(e) => Err(format!("Error parsing TLE: {}", e)),
         },
@@ -80,10 +85,9 @@ fn execute_command(command: &Commands) -> Result<String, String> {
             altitude,
         } => {
             println!("Setting location on ground station...");
-            Ok(format!(
-                "SET_LOCATION|{}|{}|{}",
-                latitude, longitude, altitude
-            ))
+            let obs = Observer::new(*latitude, *longitude, *altitude);
+            let obs_json = serde_json::to_string(&obs).unwrap();
+            Ok(format!("SET_LOCATION={}", obs_json))
         }
     }
 }
