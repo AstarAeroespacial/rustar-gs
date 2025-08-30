@@ -68,7 +68,7 @@ enum Commands {
         #[arg(short, long, default_value_t = 0.0)]
         altitude: f64,
     },
-    #[command(name = "set-observer")]
+    #[command(name = "ping")]
     Ping,
 }
 
