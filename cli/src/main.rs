@@ -1,31 +1,12 @@
+use crate::error::CliError;
+use clap::{Parser, Subcommand};
 use std::{
-    fmt,
     io::{Read, Write},
     net::TcpStream,
 };
-
-use clap::{Parser, Subcommand};
 use tracking::{Elements, Observer};
+mod error;
 
-/// Custom error type for CLI operations
-#[derive(Debug)]
-enum CliError {
-    ElementsParseError,
-    SerializationError,
-    InvalidElementsFormat,
-}
-
-impl fmt::Display for CliError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CliError::ElementsParseError => write!(f, "Error parsing Elements"),
-            CliError::SerializationError => write!(f, "SError serializing data"),
-            CliError::InvalidElementsFormat => write!(f, "Invalid Elements format"),
-        }
-    }
-}
-
-/// Ground Station CLI
 #[derive(Parser, Debug)]
 #[command(version, about = "Ground Station CLI", long_about = None)]
 struct Args {
