@@ -2,6 +2,7 @@ use crate::AntennaController;
 use serialport::SerialPort;
 use std::time::Duration;
 
+#[derive(Debug)]
 pub enum SerialAntennaControllerError {
     OpenError,
     WriteError,
