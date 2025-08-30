@@ -7,6 +7,7 @@ use std::{
 use clap::{Parser, Subcommand};
 use tracking::{Elements, Observer};
 
+/// Custom error type for CLI operations
 #[derive(Debug)]
 enum CliError {
     ElementsParseError,
@@ -32,6 +33,12 @@ struct Args {
     command: Commands,
 }
 
+/// Available commands
+/// - get-elements
+/// - set-elements <elements>
+/// - get-observer
+/// - set-observer <latitude> <longitude> [--altitude <altitude>]
+///  Elements format: name (first line), line1 (second line), line2 (third line)
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Get current Elements
@@ -62,6 +69,7 @@ enum Commands {
     },
 }
 
+/// Parse Elements from a string containing name and two lines
 fn parse_elements(elements: &str) -> Result<Elements, CliError> {
     let lines: Vec<&str> = elements.lines().collect();
 
@@ -79,6 +87,7 @@ fn parse_elements(elements: &str) -> Result<Elements, CliError> {
     Ok(e)
 }
 
+/// Execute the given command and return the command string to send to the ground station
 fn execute_command(command: &Commands) -> Result<String, CliError> {
     match command {
         Commands::GetElements => {
