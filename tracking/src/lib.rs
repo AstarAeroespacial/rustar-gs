@@ -19,6 +19,7 @@ pub struct Pass {
 }
 
 /// The observer is the location of the ground station.
+#[derive(serde::Serialize)]
 pub struct Observer {
     /// Ground station latitude, in degrees.
     latitude: Degrees,
