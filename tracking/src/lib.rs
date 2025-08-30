@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 pub use sgp4::Elements;
 use std::time::Duration;
 

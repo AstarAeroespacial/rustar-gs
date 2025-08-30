@@ -30,8 +30,8 @@ async fn main() {
     #[cfg(not(feature = "time_mock"))]
     println!("Using real system time.");
 
-    let observer = tracking::Observer::new(-34.6, -58.4, 2.5);
-    let elements = tracking::Elements::from_tle(
+    let mut observer = tracking::Observer::new(-34.6, -58.4, 2.5);
+    let mut elements = tracking::Elements::from_tle(
         Some("ISS (ZARYA)".to_owned()),
         "1 25544U 98067A   25235.75642456  .00011222  00000+0  20339-3 0  9993".as_bytes(),
         "2 25544  51.6355 332.1708 0003307 260.2831  99.7785 15.50129787525648".as_bytes(),
