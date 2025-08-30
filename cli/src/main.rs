@@ -133,7 +133,7 @@ fn main() {
         }
     };
 
-    match TcpStream::connect("") {
+    match TcpStream::connect(("localhost", 9999)) {
         Ok(mut stream) => {
             if let Err(e) = stream.write_all(command.as_bytes()) {
                 eprintln!("Error sending command: {}", e);
