@@ -38,6 +38,7 @@ struct Args {
 /// - set-elements <elements>
 /// - get-observer
 /// - set-observer <latitude> <longitude> [--altitude <altitude>]
+///
 ///  Elements format: name (first line), line1 (second line), line2 (third line)
 #[derive(Subcommand, Debug)]
 enum Commands {
@@ -67,6 +68,8 @@ enum Commands {
         #[arg(short, long, default_value_t = 0.0)]
         altitude: f64,
     },
+    #[command(name = "set-observer")]
+    Ping,
 }
 
 /// Parse Elements from a string containing name and two lines
@@ -94,7 +97,7 @@ fn execute_command(command: &Commands) -> Result<String, CliError> {
             println!("Getting current Elements from ground station...");
             Ok("GET_ELEMENTS".to_string())
         }
-        Commands::SetElements { elements } => match parse_elements(&elements) {
+        Commands::SetElements { elements } => match parse_elements(elements) {
             Ok(element) => {
                 println!("Setting Elements on ground station...");
 
@@ -118,6 +121,10 @@ fn execute_command(command: &Commands) -> Result<String, CliError> {
             let obs_json = serde_json::to_string(&obs).map_err(|_| CliError::SerializationError)?;
             Ok(format!("SET_OBSERVER={}", obs_json))
         }
+        Commands::Ping => {
+            println!("Pinging ground station...");
+            Ok("PING".to_string())
+        }
     }
 }
 
@@ -132,7 +139,7 @@ fn main() {
         }
     };
 
-    match TcpStream::connect("") {
+    match TcpStream::connect(("localhost", 9999)) {
         Ok(mut stream) => {
             if let Err(e) = stream.write_all(command.as_bytes()) {
                 eprintln!("Error sending command: {}", e);
