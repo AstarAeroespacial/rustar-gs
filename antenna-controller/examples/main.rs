@@ -1,7 +1,9 @@
-use antenna_controller::{AntennaController, SerialAntennaController};
 use std::io::{BufRead, BufReader};
 use std::thread;
 use std::time::Duration;
+
+use antenna_controller::AntennaController;
+use antenna_controller::serial::SerialAntennaController;
 
 /*
  * Before running this example, use the command in the terminal:
