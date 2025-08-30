@@ -38,6 +38,7 @@ struct Args {
 /// - set-elements <elements>
 /// - get-observer
 /// - set-observer <latitude> <longitude> [--altitude <altitude>]
+///
 ///  Elements format: name (first line), line1 (second line), line2 (third line)
 #[derive(Subcommand, Debug)]
 enum Commands {
@@ -94,7 +95,7 @@ fn execute_command(command: &Commands) -> Result<String, CliError> {
             println!("Getting current Elements from ground station...");
             Ok("GET_ELEMENTS".to_string())
         }
-        Commands::SetElements { elements } => match parse_elements(&elements) {
+        Commands::SetElements { elements } => match parse_elements(elements) {
             Ok(element) => {
                 println!("Setting Elements on ground station...");
 
