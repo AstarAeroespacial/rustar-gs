@@ -10,7 +10,11 @@ use std::{
     thread,
     time::Duration,
 };
-use tokio::task::spawn_blocking;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpListener,
+    task::spawn_blocking,
+};
 use tracking::{Tracker, get_next_pass};
 mod time;
 
@@ -28,8 +32,8 @@ async fn main() {
     #[cfg(not(feature = "time_mock"))]
     println!("Using real system time.");
 
-    let observer = tracking::Observer::new(-34.6, -58.4, 2.5);
-    let elements = tracking::Elements::from_tle(
+    let mut observer = tracking::Observer::new(-34.6, -58.4, 2.5);
+    let mut elements = tracking::Elements::from_tle(
         Some("ISS (ZARYA)".to_owned()),
         "1 25544U 98067A   25235.75642456  .00011222  00000+0  20339-3 0  9993".as_bytes(),
         "2 25544  51.6355 332.1708 0003307 260.2831  99.7785 15.50129787525648".as_bytes(),
@@ -52,8 +56,61 @@ async fn main() {
     let sleep = tokio::time::sleep(timer);
     tokio::pin!(sleep);
 
+    let listener = TcpListener::bind("localhost:9999").await.unwrap();
+
     loop {
         tokio::select! {
+            maybe_conn = listener.accept() => {
+                if let Ok((mut socket, addr)) = maybe_conn {
+                    let mut buffer = [0; 2048];
+                    let n = socket.read(&mut buffer).await.unwrap();
+
+                    let request = String::from_utf8_lossy(&buffer[..n]);
+                    println!("Received from {}: {:?}", addr, &request);
+
+                    match request.trim() {
+                        "GET_ELEMENTS" => socket
+                            .write_all(serde_json::to_string(&elements).unwrap().as_bytes())
+                            .await
+                            .unwrap(),
+                        "GET_OBSERVER" => socket
+                            .write_all(serde_json::to_string(&observer).unwrap().as_bytes())
+                            .await
+                            .unwrap(),
+                        "PING" => socket.write_all("PONG".as_bytes()).await.unwrap(),
+                        _ if request.starts_with("SET_OBSERVER=") => {
+                            let maybe_observer = request.strip_prefix("SET_OBSERVER=").unwrap();
+
+                            if let Ok(o) = serde_json::from_str(maybe_observer.trim()) {
+                                observer = o;
+                                socket.write_all("OK".as_bytes()).await.unwrap();
+                            } else {
+                                socket
+                                    .write_all("INVALID OBSERVER".as_bytes())
+                                    .await
+                                    .unwrap();
+                            }
+                        }
+                        _ if request.starts_with("SET_ELEMENTS=") => {
+                            let maybe_elements = request.strip_prefix("SET_ELEMENTS=").unwrap();
+
+                            if let Ok(e) = serde_json::from_str(maybe_elements.trim()) {
+                                elements = e;
+                                socket.write_all("OK".as_bytes()).await.unwrap();
+                            } else {
+                                socket
+                                    .write_all("INVALID ELEMENTS".as_bytes())
+                                    .await
+                                    .unwrap();
+                            }
+                        }
+                        _ => socket
+                            .write_all("INVALID COMMAND".as_bytes())
+                            .await
+                            .unwrap(),
+                    }
+                }
+            }
             _ = &mut sleep => {
                 println!("\nSTARTING PASS\n");
 

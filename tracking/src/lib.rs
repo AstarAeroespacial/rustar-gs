@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 pub use sgp4::Elements;
 use std::time::Duration;
 
@@ -19,6 +20,7 @@ pub struct Pass {
 }
 
 /// The observer is the location of the ground station.
+#[derive(Serialize, Deserialize)]
 pub struct Observer {
     /// Ground station latitude, in degrees.
     latitude: Degrees,
