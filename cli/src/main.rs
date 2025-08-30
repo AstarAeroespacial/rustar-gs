@@ -18,7 +18,7 @@ struct Args {
 /// - get-elements
 /// - set-elements <elements>
 /// - get-observer
-/// - set-observer <latitude> <longitude> [--altitude <altitude>]
+/// - set-observer <latitude> <longitude> <altitude>
 ///
 ///  Elements format: name (first line), line1 (second line), line2 (third line)
 #[derive(Subcommand, Debug)]
@@ -45,8 +45,7 @@ enum Commands {
         latitude: f64,
         /// Longitude in degrees
         longitude: f64,
-        /// Altitude in meters (optional)
-        #[arg(short, long, default_value_t = 0.0)]
+        /// Altitude in meters
         altitude: f64,
     },
     #[command(name = "ping")]
@@ -97,7 +96,8 @@ fn execute_command(command: &Commands) -> Result<String, CliError> {
             longitude,
             altitude,
         } => {
-            println!("Setting observre on ground station...");
+            println!("Setting observer on ground station...");
+
             let obs = Observer::new(*latitude, *longitude, *altitude);
             let obs_json = serde_json::to_string(&obs).map_err(|_| CliError::SerializationError)?;
             Ok(format!("SET_OBSERVER={}", obs_json))
@@ -132,7 +132,7 @@ fn main() {
                 Ok(_) => {
                     let response = response.trim();
                     if !response.is_empty() {
-                        println!("Response from ground station: {}", response);
+                        println!("{}", response);
                     } else {
                         println!("Command sent successfully");
                     }
