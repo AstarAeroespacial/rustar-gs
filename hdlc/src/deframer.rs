@@ -2,6 +2,7 @@ use crate::bitvecdeque::BitVecDeque;
 use crate::frame::Bit;
 use crate::frame::Frame;
 use crate::packets::telemetry::TelemetryPacket;
+use crate::packetizer::packetize;
 use std::sync::mpsc::{Receiver, Sender};
 
 pub trait Deframer {
@@ -115,14 +116,7 @@ impl Deframer for HdlcDeframer {
 }
 
 fn deframe(frames: Vec<Frame>) -> Vec<TelemetryPacket> {
-    frames
-        .into_iter()
-        .filter_map(|frame| {
-            frame
-                .info
-                .and_then(|info| TelemetryPacket::try_from(info).ok())
-        })
-        .collect()
+    packetize(frames.into_iter()).collect()
 }
 
 #[cfg(test)]
