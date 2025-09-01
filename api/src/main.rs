@@ -17,8 +17,8 @@ use models::{requests::{HistoricTelemetryRequest, LatestTelemetryRequest}, respo
 use repository::{telemetry::TelemetryRepository};
 use services::{telemetry_service::TelemetryService, message_service::MessageService};
 use database::create_pool;
-use messaging::broker::MqttBroker;
-    
+use messaging::{broker::MqttBroker, receiver::MqttReceiver};
+
 #[derive(OpenApi)]
 #[openapi(
     paths(routes::telemetry::get_latest_telemetry, routes::telemetry::get_historic_telemetry, routes::config::get_config, routes::control::send_command),
@@ -68,21 +68,14 @@ async fn main() -> std::io::Result<()> {
     let telemetry_service = std::sync::Arc::new(TelemetryService::new(repository));
 
     let keepalive = std::time::Duration::from_secs(shared_config.message_broker.keep_alive as u64);
-    let (broker, mut eventloop) = MqttBroker::new(&shared_config.message_broker.host, shared_config.message_broker.port, keepalive);
+    let (broker, eventloop) = MqttBroker::new(&shared_config.message_broker.host, shared_config.message_broker.port, keepalive);
+    let client = broker.client();
     let messaging_service = std::sync::Arc::new(MessageService::new(broker));
     
 
     // Start event loop in a separate thread
-    let _eventloop_thread = tokio::spawn(async move {
-        loop {
-            let result = eventloop.poll().await;
-            if let Err(e) = result {
-                println!("Event loop error: {}", e);
-            }
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        }
-    });
-
+    let mut recv = MqttReceiver::from_client(client, eventloop);
+    
     println!("Starting Rust API server...");
     println!("API endpoints:");
     println!("  - GET /api/telemetry/latest");
@@ -91,7 +84,7 @@ async fn main() -> std::io::Result<()> {
     println!("  - GET /swagger-ui/ - Swagger UI documentation");
     println!("Server address: {}", server_address);
     
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(shared_config.clone()))
             .app_data(web::Data::new(telemetry_service.clone()))
@@ -106,7 +99,13 @@ async fn main() -> std::io::Result<()> {
                     .url("/api-docs/openapi.json", ApiDoc::openapi()),
             )
     })
-    .bind(server_address)?
-    .run()
-    .await
+    .bind(server_address)?;
+
+    let (server_result, _) = tokio::join!(
+        server.run(),
+        recv.run()
+    );
+
+    server_result?;
+    Ok(())
 }
