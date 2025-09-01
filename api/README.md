@@ -8,19 +8,18 @@ A Rust API server built with Actix-web that includes configuration management, d
 
 The application follows a clean architecture pattern with the following layers:
 
-- **Controllers (Routes)**: Handle HTTP requests and responses
-- **Services**: Business logic layer
+- **Routes**: Handle HTTP requests and responses
+- **Services**: Business logic layer for exchanging messages and accessing telemetry
 - **Repository**: Data access layer with database abstraction
+- **Messaging**: Communication layer for interacting with ground stations
 - **Models**: Data structures and DTOs
 
-## Features
+## Technology Stack
 
-- Configuration management using TOML files
-- OpenAPI/Swagger documentation with Utoipa
-- Environment variable support for configuration
-- Database abstraction layer (currently SQLite, easily swappable)
-- Service-controller architecture for clean separation of concerns
-- Database migrations with SQLx
+- `actix_web` and `utoipa` for the HTTP server and API documentation respectively
+- `rumqttc` for MQTT integration
+- `sqlx` for postgres integration
+- The app was developed with `psql` for the database and `mosquitto` for the MQTT broker
 
 ## Configuration
 
@@ -31,19 +30,17 @@ The server uses a `config.toml` file for configuration. The following sections a
 - `port`: Server port (default: 8080)
 
 ### Database Configuration
-- `url`: Database connection string (default: sqlite:./.data/telemetry.db for local development)
+- `url`: Database connection string
 - `pool_size`: Connection pool size
 
 ### Message Broker Configuration
-- `url`: Message broker connection string
-- `queue_name`: Queue name for receiving messages
-- `exchange_name`: Exchange name for publishing messages
-
-Currently unused
+- `host`: Message broker address
+- `port`: Port for the connection
+- `keep_alive`: keepalive message interval
 
 ## Environment Variables
 
-You can override configuration values using environment variables with the `API_` prefix:
+You can (and should) override configuration values using environment variables with the `API_` prefix:
 
 ```bash
 export API_SERVER_HOST=0.0.0.0
@@ -51,17 +48,32 @@ export API_SERVER_PORT=3000
 export API_DATABASE_URL=sqlite:./data/telemetry.db
 ```
 
-## Database Setup
+It is recomended that you create a `.env` file with all your local development config. You can refer to the provided `.env.example`
 
-The application uses SQLite by default, but the repository pattern makes it easy to switch to other SQL databases.
+## Setup for Local development
 
-### Initial Database Setup
+### MQTT Broker Setup
 
-1. Install [sqlx cli tool](https://github.com/launchbadge/sqlx/blob/main/sqlx-cli/README.md) by running `cargo install sqlx-cli`
-2. Add the database path by running `export DATABASE_URL=sqlite:./.data/telemetry.db` (or whichever path you prefer)
-3. Initialize the database by running `sqlx database create`
-4. Run migrations with `sqlx migrate run`
-5. You can generate test data with `cargo run --bin seed_data`
+1. Install any MQTT broker of your choosing. For development, we used [mosquitto](https://www.mosquitto.org/download/).
+2. Open another terminal and run the broker. With mosquitto, this is done with the command `mosquitto -p 1234`.
+3. Make sure to set the host and port appropriately in the config 
+
+### Database Setup
+
+1. Install a [Postgres database](https://www.postgresql.org/download/) via the method of your choosing
+2. Install [sqlx cli tool](https://github.com/launchbadge/sqlx/blob/main/sqlx-cli/README.md) by running `cargo install sqlx-cli`
+3. Add the database path by running `export DATABASE_URL=postgresql://localhost/rustar-api?user=myuser&password=mypw` (or whichever path you have for your database). It's recommended to add this variable to a .env file (Note that this is different from API_DATABASE_URL, both should be set)
+4. Initialize the database by running `sqlx database create`
+5. Run migrations with `sqlx migrate run`
+6. You can generate test data with `cargo run --bin seed_data`
+
+### Running the Server
+
+1. Copy the `.env.example` file to `.env` and make sure all the variables are set
+2. Run the server:
+   ```bash
+   cargo run --bin api
+   ```
 
 ## API Endpoints
 
@@ -69,14 +81,6 @@ The application uses SQLite by default, but the repository pattern makes it easy
 - `GET /api/telemetry/history?startTime=1640995200&endTime=1640998800` - Get historic telemetry data
 - `GET /config` - View current configuration
 - `GET /swagger-ui/` - OpenAPI documentation
-
-## Running the Server
-
-1. Update the `config.toml` file with your actual configuration values
-2. Run the server:
-   ```bash
-   cargo run
-   ```
 
 ## Development
 
@@ -88,20 +92,5 @@ The server is structured with:
 - `src/services/` - Business logic layer
 - `src/routes/` - HTTP route handlers
 - `src/database/` - Database connection management
+- `src/messaging/` - MQTT integration
 - `migrations/` - Database schema migrations
-
-## Database Abstraction
-
-The repository pattern allows easy database switching:
-
-1. Create a new repository implementation (e.g., `PostgresTelemetryRepository`)
-2. Implement the `TelemetryRepository` trait
-3. Update the dependency injection in `main.rs`
-
-## Next Steps
-
-1. Add message broker integration
-2. Implement authentication and authorization
-3. Add more telemetry endpoints (create, update, delete)
-4. Add data validation and error handling
-5. Implement caching layer 
