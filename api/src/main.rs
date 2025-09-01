@@ -18,6 +18,8 @@ use repository::{telemetry::TelemetryRepository};
 use services::{telemetry_service::TelemetryService, message_service::MessageService};
 use database::create_pool;
 use messaging::{broker::MqttBroker, receiver::MqttReceiver};
+use tokio::sync::oneshot;
+use tokio::signal;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -101,11 +103,36 @@ async fn main() -> std::io::Result<()> {
     })
     .bind(server_address)?;
 
-    let (server_result, _) = tokio::join!(
-        server.run(),
-        recv.run()
-    );
+    // Create shutdown channel for MQTT receiver
+    let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
-    server_result?;
+    // Start HTTP server and obtain handle
+    let server_handle = server.run();
+    let handle = server_handle.handle();
+
+    // Spawn MQTT receiver task
+    let recv_task = tokio::spawn(async move {
+        recv.run(shutdown_rx).await;
+    });
+
+    // Wait for either ctrl+c or server error
+    tokio::select! {
+        _ = signal::ctrl_c() => {
+            println!("SIGINT received: shutting down server and MQTT receiver...");
+            let _ = shutdown_tx.send(());
+            handle.stop(true).await;
+        }
+        res = server_handle => {
+            if let Err(e) = res {
+                eprintln!("HTTP server error: {:?}", e);
+            }
+            // Server finished; signal MQTT to stop as well
+            let _ = shutdown_tx.send(());
+        }
+    }
+
+    // Wait for MQTT task to finish
+    let _ = recv_task.await;
+
     Ok(())
 }
