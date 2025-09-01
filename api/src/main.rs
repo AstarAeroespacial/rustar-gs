@@ -1,5 +1,4 @@
 use actix_web::{middleware::Logger, web, App, HttpServer};
-use sqlx::any::install_default_drivers;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -68,8 +67,6 @@ async fn main() -> std::io::Result<()> {
     println!("Creating database pool...");
     println!("Database url: {}", &shared_config.database.url);
 
-    install_default_drivers();
-
     let pool = create_pool(&shared_config.database.url)
         .await
         .expect("Failed to create database pool");
@@ -90,6 +87,7 @@ async fn main() -> std::io::Result<()> {
     // Start event loop in a separate thread
     let mut recv = MqttReceiver::from_client(client, eventloop, telemetry_service.clone());
 
+    println!("============= THIS NEEDS TO BE UPDATED =============");
     println!("Starting Rust API server...");
     println!("API endpoints:");
     println!("  - GET /api/telemetry/latest");
@@ -97,7 +95,8 @@ async fn main() -> std::io::Result<()> {
     println!("  - GET /config - View configuration");
     println!("  - GET /swagger-ui/ - Swagger UI documentation");
     println!("Server address: {}", server_address);
-
+    println!("============= THIS NEEDS TO BE UPDATED =============");
+    
     let server = HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(shared_config.clone()))

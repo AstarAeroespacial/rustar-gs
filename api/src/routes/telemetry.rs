@@ -7,8 +7,9 @@ use std::sync::Arc;
 /// Latest telemetry endpoint
 #[utoipa::path(
     get,
-    path = "/api/telemetry/latest",
+    path = "/api/telemetry/{satellite}/latest",
     params(
+        ("satellite" = String, Path, description = "Name of satellite to fetch telemetry from"),
         ("amount" = Option<i32>, Query, description = "Number of items to return", example = 10),
     ),
     responses(
@@ -18,15 +19,16 @@ use std::sync::Arc;
     ),
     tag = "API"
 )]
-#[get("/api/telemetry/latest")]
+#[get("/api/telemetry/{satellite}/latest")]
 pub async fn get_latest_telemetry(
+    satellite: web::Path<String>,
     req: web::Query<LatestTelemetryRequest>,
     service: web::Data<Arc<TelemetryService>>,
 ) -> Result<impl Responder> {
     let req = req.into_inner();
     let amount = req.amount.unwrap_or(10);
 
-    match service.get_latest_telemetry(amount).await {
+    match service.get_latest_telemetry(satellite.into_inner(), amount).await {
         Ok(telemetry) => Ok(actix_web::web::Json(telemetry)),
         Err(e) => {
             error!("Error fetching latest telemetry: {}", e);
@@ -40,8 +42,9 @@ pub async fn get_latest_telemetry(
 /// Historic telemetry endpoint
 #[utoipa::path(
     get,
-    path = "/api/telemetry/history",
+    path = "/api/telemetry/{satellite}/history",
     params(
+        ("satellite" = String, Path, description = "Name of satellite to fetch telemetry from"),
         ("startTime" = Option<i64>, Query, description = "Start timestamp", example = 1640995200),
         ("endTime" = Option<i64>, Query, description = "End timestamp", example = 1640998800),
     ),
@@ -52,15 +55,16 @@ pub async fn get_latest_telemetry(
     ),
     tag = "API"
 )]
-#[get("/api/telemetry/history")]
+#[get("/api/telemetry/{satellite}/history")]
 pub async fn get_historic_telemetry(
+    satellite: web::Path<String>,
     req: web::Query<HistoricTelemetryRequest>,
     service: web::Data<Arc<TelemetryService>>,
 ) -> Result<impl Responder> {
     let req = req.into_inner();
 
     match service
-        .get_historic_telemetry(req.start_time, req.end_time)
+        .get_historic_telemetry(satellite.into_inner(), req.start_time, req.end_time)
         .await
     {
         Ok(telemetry) => Ok(actix_web::web::Json(telemetry)),
