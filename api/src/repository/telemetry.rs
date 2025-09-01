@@ -1,26 +1,27 @@
-use sqlx::{Any, Pool};
+use sqlx::{Pool, Postgres};
 use chrono::Utc;
 use crate::models::telemetry::TelemetryRecord;
 
 pub struct TelemetryRepository {
-    pool: Pool<Any>,
+    pool: Pool<Postgres>,
 }
 
 impl TelemetryRepository {
-    pub fn new(pool: Pool<Any>) -> Self {
+    pub fn new(pool: Pool<Postgres>) -> Self {
         Self { pool }
     }
 
     pub async fn get_latest(&self, limit: i32) -> Result<Vec<TelemetryRecord>, Box<dyn std::error::Error + Send + Sync>> {
-        let records = sqlx::query_as(
+        let records = sqlx::query_as!(
+            TelemetryRecord,
             r#"
             SELECT id, timestamp, temperature, voltage, current, battery_level
             FROM telemetry
             ORDER BY timestamp DESC
-            LIMIT ?
-            "#
+            LIMIT $1
+            "#,
+            limit as i64
         )
-        .bind(limit as i64)
         .fetch_all(&self.pool)
         .await?;
 
@@ -31,16 +32,17 @@ impl TelemetryRepository {
         let start_ts = start_time.unwrap_or(0);
         let end_ts = end_time.unwrap_or(Utc::now().timestamp());
 
-        let records = sqlx::query_as(
-                r#"
-                SELECT id, timestamp, temperature, voltage, current, battery_level
-                FROM telemetry
-                WHERE timestamp >= ? AND timestamp <= ?
-                ORDER BY timestamp DESC
-                "#
+        let records = sqlx::query_as!(
+            TelemetryRecord,
+            r#"
+            SELECT id, timestamp, temperature, voltage, current, battery_level
+            FROM telemetry
+            WHERE timestamp >= $1 AND timestamp <= $2
+            ORDER BY timestamp DESC
+            "#,
+            start_ts,
+            end_ts
         )
-        .bind(start_ts)
-        .bind(end_ts)
         .fetch_all(&self.pool)
         .await?;
 

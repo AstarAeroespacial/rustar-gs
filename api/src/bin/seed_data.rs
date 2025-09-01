@@ -1,11 +1,15 @@
-use sqlx::{SqlitePool};
+use sqlx::{PgPool};
 use chrono::{Utc, Duration};
 use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+    let _ = dotenvy::dotenv();
+    let database_url = std::env::var("API_DATABASE_URL").expect("DATABASE_URL must be set");
+
     // Connect to database
-    let pool = SqlitePool::connect("sqlite:./.data/telemetry.db").await?;
+    let pool = PgPool::connect(&database_url).await?;
     
     println!("Seeding database with test telemetry data...");
     
@@ -17,24 +21,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let telemetry = (
             Uuid::new_v4().to_string(),
             current_time.timestamp(),
-            20.0 + (i as f64 * 0.1), // Varying temperature
-            12.0 + (i as f64 * 0.01), // Varying voltage
-            1.0 + (i as f64 * 0.005), // Varying current
+            20.0 + (i as f32 * 0.1), // Varying temperature
+            12.0 + (i as f32 * 0.01), // Varying voltage
+            1.0 + (i as f32 * 0.005), // Varying current
             50 + (i % 20), // Varying battery level
         );
         
-        sqlx::query(
+        sqlx::query!(
             r#"
             INSERT INTO telemetry (id, timestamp, temperature, voltage, current, battery_level)
-            VALUES (?, ?, ?, ?, ?, ?)
-            "#
+            VALUES ($1, $2, $3, $4, $5, $6)
+            "#,
+            (telemetry.0),
+            (telemetry.1),
+            (telemetry.2),
+            (telemetry.3),
+            (telemetry.4),
+            (telemetry.5)
         )
-        .bind(telemetry.0)
-        .bind(telemetry.1)
-        .bind(telemetry.2)
-        .bind(telemetry.3)
-        .bind(telemetry.4)
-        .bind(telemetry.5)
         .execute(&pool)
         .await?;
         

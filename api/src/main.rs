@@ -58,6 +58,7 @@ async fn main() -> std::io::Result<()> {
     
     // Create database pool
     println!("Creating database pool...");
+    println!("Database url: {}", &shared_config.database.url);
 
     install_default_drivers();
     

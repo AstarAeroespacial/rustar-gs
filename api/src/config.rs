@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
+use dotenvy;
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub struct ServerConfig {
@@ -31,9 +32,12 @@ pub struct Config {
 
 impl Config {
     pub fn load() -> Result<Self, config::ConfigError> {
+        
+        let _ = dotenvy::dotenv();
+
         let settings = config::Config::builder()
             .add_source(config::File::with_name("config"))
-            .add_source(config::Environment::with_prefix("API"))
+            .add_source(config::Environment::separator(config::Environment::with_prefix("API"), "_"))
             .build()?;
 
         settings.try_deserialize()
