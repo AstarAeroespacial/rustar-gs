@@ -1,6 +1,6 @@
-use sqlx::{Pool, Postgres};
-use chrono::Utc;
 use crate::models::telemetry::TelemetryRecord;
+use chrono::Utc;
+use sqlx::{Pool, Postgres};
 
 pub struct TelemetryRepository {
     pool: Pool<Postgres>,
@@ -11,7 +11,10 @@ impl TelemetryRepository {
         Self { pool }
     }
 
-    pub async fn get_latest(&self, limit: i32) -> Result<Vec<TelemetryRecord>, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn get_latest(
+        &self,
+        limit: i32,
+    ) -> Result<Vec<TelemetryRecord>, Box<dyn std::error::Error + Send + Sync>> {
         let records = sqlx::query_as!(
             TelemetryRecord,
             r#"
@@ -28,7 +31,11 @@ impl TelemetryRepository {
         Ok(records)
     }
 
-    pub async fn get_historic(&self, start_time: Option<i64>, end_time: Option<i64>) -> Result<Vec<TelemetryRecord>, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn get_historic(
+        &self,
+        start_time: Option<i64>,
+        end_time: Option<i64>,
+    ) -> Result<Vec<TelemetryRecord>, Box<dyn std::error::Error + Send + Sync>> {
         let start_ts = start_time.unwrap_or(0);
         let end_ts = end_time.unwrap_or(Utc::now().timestamp());
 
@@ -67,4 +74,4 @@ impl TelemetryRepository {
 
     //     Ok(())
     // }
-} 
+}

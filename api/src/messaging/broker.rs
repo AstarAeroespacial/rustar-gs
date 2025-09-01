@@ -1,4 +1,4 @@
-use rumqttc::{MqttOptions, AsyncClient, QoS, ClientError, EventLoop};
+use rumqttc::{AsyncClient, ClientError, EventLoop, MqttOptions, QoS};
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -19,15 +19,19 @@ impl MqttBroker {
 
     #[allow(dead_code)]
     pub fn from_client(client: AsyncClient) -> Self {
-        Self { client: client.clone() }
+        Self {
+            client: client.clone(),
+        }
     }
 
     pub fn client(&self) -> AsyncClient {
         self.client.clone()
     }
-    
+
     pub async fn publish(&self, topic: &str, payload: &str) -> Result<(), ClientError> {
-        self.client.publish(topic, QoS::AtLeastOnce, false, payload.as_bytes()).await?;
+        self.client
+            .publish(topic, QoS::AtLeastOnce, false, payload.as_bytes())
+            .await?;
         println!("Published message {} to topic: {}", payload, topic);
         Ok(())
     }

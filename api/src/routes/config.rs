@@ -1,6 +1,6 @@
-use actix_web::{get, Responder, Result, web};
 use crate::config::SharedConfig;
 use crate::models::responses::ConfigResponse;
+use actix_web::{get, web, Responder, Result};
 
 /// Configuration endpoint
 #[utoipa::path(
@@ -19,4 +19,4 @@ pub async fn get_config(config: web::Data<SharedConfig>) -> Result<impl Responde
         message_broker: config.message_broker.clone(),
     };
     Ok(actix_web::web::Json(response))
-} 
+}

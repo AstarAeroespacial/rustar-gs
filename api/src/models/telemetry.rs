@@ -23,4 +23,4 @@ impl TelemetryRecord {
     //         created_at: Utc::now(),
     //     }
     // }
-} 
+}

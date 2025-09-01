@@ -1,8 +1,7 @@
 use serde::Serialize;
 use utoipa::ToSchema;
 
-#[derive(ToSchema)]
-#[derive(Debug, Serialize)]
+#[derive(ToSchema, Debug, Serialize)]
 pub struct TelemetryResponse {
     pub timestamp: i64, // ISO timestamp
     pub temperature: f64,
@@ -11,8 +10,7 @@ pub struct TelemetryResponse {
     pub battery_level: i32, // percentage
 }
 
-#[derive(ToSchema)]
-#[derive(Debug, Serialize)]
+#[derive(ToSchema, Debug, Serialize)]
 pub struct ConfigResponse {
     pub server: crate::config::ServerConfig,
     pub database: crate::config::DatabaseConfig,

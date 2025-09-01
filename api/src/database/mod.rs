@@ -1,4 +1,4 @@
-use sqlx::{Pool, Postgres, PgPool};
+use sqlx::{PgPool, Pool, Postgres};
 use std::path::Path;
 
 pub async fn create_pool(database_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
@@ -8,11 +8,9 @@ pub async fn create_pool(database_url: &str) -> Result<Pool<Postgres>, sqlx::Err
     }
 
     let pool = PgPool::connect(database_url).await?;
-    
+
     // Run migrations
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await?;
+    sqlx::migrate!("./migrations").run(&pool).await?;
 
     Ok(pool)
-} 
+}

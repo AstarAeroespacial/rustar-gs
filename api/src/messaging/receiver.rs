@@ -1,4 +1,10 @@
-use rumqttc::{AsyncClient, Event::{self, Incoming, Outgoing}, EventLoop, MqttOptions, QoS, Packet::Publish};
+use rumqttc::{
+    AsyncClient,
+    Event::{self, Incoming, Outgoing},
+    EventLoop, MqttOptions,
+    Packet::Publish,
+    QoS,
+};
 use std::time::Duration;
 use tokio::sync::oneshot;
 use uuid::Uuid;
@@ -23,12 +29,12 @@ impl MqttReceiver {
     pub fn from_client(client: AsyncClient, eventloop: EventLoop) -> Self {
         Self { client, eventloop }
     }
-    
+
     #[allow(dead_code)]
     pub fn client(&self) -> AsyncClient {
         self.client.clone()
     }
-    
+
     pub async fn run(&mut self, mut shutdown: oneshot::Receiver<()>) {
         if let Err(e) = self.client.subscribe("test-topic", QoS::AtLeastOnce).await {
             eprintln!("Error subscribing to topic: {:?}", e)
@@ -68,14 +74,13 @@ impl MqttReceiver {
                     let msg_text = String::from_utf8(msg.payload.to_vec());
                     match msg_text {
                         Ok(msg) => println!("Message received:{:?}", msg),
-                        Err(e) => eprintln!("Error converting payload: {:?}", e)
+                        Err(e) => eprintln!("Error converting payload: {:?}", e),
                     };
                 } else {
                     println!("Incoming event: {:?}", pk)
                 }
-            },
-            Outgoing(ev) => println!("Outgoing event: {:?}", ev)
+            }
+            Outgoing(ev) => println!("Outgoing event: {:?}", ev),
         }
     }
 }
-

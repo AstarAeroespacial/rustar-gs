@@ -1,25 +1,33 @@
-use actix_web::{App, HttpServer, web, middleware::Logger};
+use actix_web::{middleware::Logger, web, App, HttpServer};
+use sqlx::any::install_default_drivers;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use sqlx::any::install_default_drivers;
 
 mod config;
-mod routes;
-mod models;
-mod repository;
-mod services;
 mod database;
 mod messaging;
+mod models;
+mod repository;
+mod routes;
+mod services;
 
-use config::{Config, ServerConfig, DatabaseConfig, MessageBrokerConfig};
-use routes::{telemetry::{get_latest_telemetry, get_historic_telemetry}, config::get_config, control::send_command};
-use models::{requests::{HistoricTelemetryRequest, LatestTelemetryRequest}, responses::*, commands::TestMessage};
-use repository::{telemetry::TelemetryRepository};
-use services::{telemetry_service::TelemetryService, message_service::MessageService};
+use config::{Config, DatabaseConfig, MessageBrokerConfig, ServerConfig};
 use database::create_pool;
 use messaging::{broker::MqttBroker, receiver::MqttReceiver};
-use tokio::sync::oneshot;
+use models::{
+    commands::TestMessage,
+    requests::{HistoricTelemetryRequest, LatestTelemetryRequest},
+    responses::*,
+};
+use repository::telemetry::TelemetryRepository;
+use routes::{
+    config::get_config,
+    control::send_command,
+    telemetry::{get_historic_telemetry, get_latest_telemetry},
+};
+use services::{message_service::MessageService, telemetry_service::TelemetryService};
 use tokio::signal;
+use tokio::sync::oneshot;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -55,30 +63,33 @@ async fn main() -> std::io::Result<()> {
     let config = Config::load().expect("Failed to load configuration");
     let shared_config = std::sync::Arc::new(config);
     let server_address = shared_config.server_address();
-    
+
     // Create database pool
     println!("Creating database pool...");
     println!("Database url: {}", &shared_config.database.url);
 
     install_default_drivers();
-    
+
     let pool = create_pool(&shared_config.database.url)
         .await
         .expect("Failed to create database pool");
-    
+
     // Create repository and service
     let repository = TelemetryRepository::new(pool);
     let telemetry_service = std::sync::Arc::new(TelemetryService::new(repository));
 
     let keepalive = std::time::Duration::from_secs(shared_config.message_broker.keep_alive as u64);
-    let (broker, eventloop) = MqttBroker::new(&shared_config.message_broker.host, shared_config.message_broker.port, keepalive);
+    let (broker, eventloop) = MqttBroker::new(
+        &shared_config.message_broker.host,
+        shared_config.message_broker.port,
+        keepalive,
+    );
     let client = broker.client();
     let messaging_service = std::sync::Arc::new(MessageService::new(broker));
-    
 
     // Start event loop in a separate thread
     let mut recv = MqttReceiver::from_client(client, eventloop);
-    
+
     println!("Starting Rust API server...");
     println!("API endpoints:");
     println!("  - GET /api/telemetry/latest");
@@ -86,7 +97,7 @@ async fn main() -> std::io::Result<()> {
     println!("  - GET /config - View configuration");
     println!("  - GET /swagger-ui/ - Swagger UI documentation");
     println!("Server address: {}", server_address);
-    
+
     let server = HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(shared_config.clone()))

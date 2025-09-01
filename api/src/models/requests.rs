@@ -1,8 +1,7 @@
 use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};
 
-#[derive(ToSchema, IntoParams)]
-#[derive(Debug, Deserialize)]
+#[derive(ToSchema, IntoParams, Debug, Deserialize)]
 #[into_params(style = Form)]
 #[serde(rename_all = "camelCase")]
 pub struct HistoricTelemetryRequest {
@@ -12,8 +11,7 @@ pub struct HistoricTelemetryRequest {
     pub end_time: Option<i64>,
 }
 
-#[derive(ToSchema, IntoParams)]
-#[derive(Debug, Deserialize)]
+#[derive(ToSchema, IntoParams, Debug, Deserialize)]
 #[into_params(style = Form)]
 #[serde(rename_all = "camelCase")]
 pub struct LatestTelemetryRequest {
