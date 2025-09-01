@@ -1,4 +1,4 @@
-use rumqttc::{AsyncClient, EventLoop, QoS, MqttOptions};
+use rumqttc::{AsyncClient, Event::{self, Incoming, Outgoing}, EventLoop, MqttOptions, QoS, Packet::Publish};
 use std::time::Duration;
 use tokio::sync::oneshot;
 use uuid::Uuid;
@@ -42,7 +42,7 @@ impl MqttReceiver {
                 }
                 event = self.eventloop.poll() => {
                     match event {
-                        Ok(notif) => println!("Notif: {:?}", notif),
+                        Ok(notif) => self.handle_event(notif),
                         Err(e) => eprintln!("Connection error in recv: {:?}", e)
                     }
                 }
@@ -52,6 +52,27 @@ impl MqttReceiver {
 
         if let Err(e) = self.client.disconnect().await {
             eprintln!("Error disconnecting MQTT client: {:?}", e);
+        }
+    }
+
+    fn handle_event(&self, event: Event) {
+        println!("Notif: {:?}", event);
+
+        match event {
+            Incoming(pk) => {
+                println!("Received incoming event: {:?}", pk);
+
+                if let Publish(msg) = pk {
+                    let msg_text = String::from_utf8(msg.payload.to_vec());
+                    match msg_text {
+                        Ok(msg) => println!("Message received:{:?}", msg),
+                        Err(e) => eprintln!("Error converting payload: {:?}", e)
+                    };
+                } else {
+                    println!("Incoming event: {:?}", pk)
+                }
+            },
+            Outgoing(ev) => println!("Outgoing event: {:?}", ev)
         }
     }
 }
