@@ -1,6 +1,5 @@
 use crate::messaging::broker::MqttBroker;
 use rumqttc::ClientError;
-use std::ops::{Deref, DerefMut};
 
 pub struct MessageService {
     pub message_broker: MqttBroker,
@@ -15,17 +14,3 @@ impl MessageService {
         self.message_broker.publish(topic, payload).await
     }
 }
-
-// impl DerefMut for MessageService {
-//     fn deref_mut(&mut self) -> &mut MqttBroker {
-//         &mut self.message_broker
-//     }
-// }
-
-// impl Deref for MessageService {
-//     type Target = MqttBroker;
-
-//     fn deref(&self) -> &Self::Target {
-//         &self.message_broker
-//     }
-// }

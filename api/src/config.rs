@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
-use dotenvy;
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub struct ServerConfig {

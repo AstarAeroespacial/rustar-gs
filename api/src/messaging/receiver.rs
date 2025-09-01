@@ -9,6 +9,7 @@ pub struct MqttReceiver {
 }
 
 impl MqttReceiver {
+    #[allow(dead_code)]
     pub fn new(host: &str, port: u16, keep_alive: Duration) -> Self {
         let client_id = format!("rustar-api-{}", Uuid::new_v4());
         let mut options = MqttOptions::new(client_id, host, port);
@@ -23,6 +24,7 @@ impl MqttReceiver {
         Self { client, eventloop }
     }
     
+    #[allow(dead_code)]
     pub fn client(&self) -> AsyncClient {
         self.client.clone()
     }

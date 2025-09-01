@@ -17,6 +17,7 @@ impl MqttBroker {
         (Self { client }, eventloop)
     }
 
+    #[allow(dead_code)]
     pub fn from_client(client: AsyncClient) -> Self {
         Self { client: client.clone() }
     }
