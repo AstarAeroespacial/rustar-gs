@@ -88,7 +88,7 @@ async fn main() -> std::io::Result<()> {
     let messaging_service = std::sync::Arc::new(MessageService::new(broker));
 
     // Start event loop in a separate thread
-    let mut recv = MqttReceiver::from_client(client, eventloop);
+    let mut recv = MqttReceiver::from_client(client, eventloop, telemetry_service.clone());
 
     println!("Starting Rust API server...");
     println!("API endpoints:");
@@ -122,9 +122,12 @@ async fn main() -> std::io::Result<()> {
     let server_handle = server.run();
     let handle = server_handle.handle();
 
-    // Spawn MQTT receiver task
-    let recv_task = tokio::spawn(async move {
-        recv.run(shutdown_rx).await;
+    // Spawn MQTT receiver task, using tokio::task::spawn_blocking to avoid Send/Sync issues
+    let recv_task = tokio::task::spawn_blocking(move || {
+        // Since run is async, we need a runtime here
+        let rt =
+            tokio::runtime::Runtime::new().expect("Failed to create runtime for MQTT receiver");
+        rt.block_on(recv.run(shutdown_rx));
     });
 
     // Wait for either ctrl+c or server error

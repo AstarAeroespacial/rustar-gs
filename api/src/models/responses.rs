@@ -4,9 +4,9 @@ use utoipa::ToSchema;
 #[derive(ToSchema, Debug, Serialize)]
 pub struct TelemetryResponse {
     pub timestamp: i64, // ISO timestamp
-    pub temperature: f64,
-    pub voltage: f64,
-    pub current: f64,
+    pub temperature: f32,
+    pub voltage: f32,
+    pub current: f32,
     pub battery_level: i32, // percentage
 }
 

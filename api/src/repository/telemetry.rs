@@ -56,22 +56,25 @@ impl TelemetryRepository {
         Ok(records)
     }
 
-    // async fn save(&self, telemetry: TelemetryRecord) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    //     sqlx::query(
-    //         r#"
-    //         INSERT INTO telemetry (id, time, temperature, voltage, current, battery_level, created_at)
-    //         VALUES (?, ?, ?, ?, ?, ?, ?)
-    //         "#
-    //     )
-    //     .bind(telemetry.id)
-    //     .bind(telemetry.timestamp)
-    //     .bind(telemetry.temperature)
-    //     .bind(telemetry.voltage)
-    //     .bind(telemetry.current)
-    //     .bind(telemetry.battery_level)
-    //     .execute(&self.pool)
-    //     .await?;
+    pub async fn save(
+        &self,
+        telemetry: TelemetryRecord,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        sqlx::query!(
+            r#"
+            INSERT INTO telemetry (id, timestamp, temperature, voltage, current, battery_level)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            "#,
+            telemetry.id,
+            telemetry.timestamp,
+            telemetry.temperature,
+            telemetry.voltage,
+            telemetry.current,
+            telemetry.battery_level
+        )
+        .execute(&self.pool)
+        .await?;
 
-    //     Ok(())
-    // }
+        Ok(())
+    }
 }

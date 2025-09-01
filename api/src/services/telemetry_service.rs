@@ -1,6 +1,6 @@
-use crate::repository::telemetry::TelemetryRepository;
-// use crate::models::telemetry::TelemetryRecord;
 use crate::models::responses::TelemetryResponse;
+use crate::models::telemetry::TelemetryRecord;
+use crate::repository::telemetry::TelemetryRepository;
 
 pub struct TelemetryService {
     repository: TelemetryRepository,
@@ -50,8 +50,15 @@ impl TelemetryService {
         Ok(responses)
     }
 
-    // pub async fn save_telemetry(&self, temperature: f64, voltage: f64, current: f64, battery_level: i32) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    //     let record = TelemetryRecord::new(temperature, voltage, current, battery_level);
-    //     self.repository.save(record).await
-    // }
+    pub async fn save_telemetry(
+        &self,
+        timestamp: i64,
+        temperature: f32,
+        voltage: f32,
+        current: f32,
+        battery_level: i32,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let record = TelemetryRecord::new(timestamp, temperature, voltage, current, battery_level);
+        self.repository.save(record).await
+    }
 }
