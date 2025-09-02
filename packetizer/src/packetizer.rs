@@ -3,14 +3,14 @@ use hdlc::frame::Frame;
 use telemetry::TelemetryRecord;
 
 /// Iterator that converts frames to packets.
-pub struct PacketizerIterator<I>
+struct TelemetryRecordIterator<I>
 where
     I: Iterator<Item = Frame>,
 {
     input: I,
 }
 
-impl<I> PacketizerIterator<I>
+impl<I> TelemetryRecordIterator<I>
 where
     I: Iterator<Item = Frame>,
 {
@@ -21,7 +21,7 @@ where
 }
 
 /// Iterator implementation that converts Frames to TelemetryPackets
-impl<I> Iterator for PacketizerIterator<I>
+impl<I> Iterator for TelemetryRecordIterator<I>
 where
     I: Iterator<Item = Frame>,
 {
@@ -40,20 +40,20 @@ where
 }
 
 /// Telemetry packetizer implementation for HDLC Frame to TelemetryPacket conversion.
-pub struct TelemetryPacketizer;
+pub struct TelemetryRecordPacketizer;
 
-impl TelemetryPacketizer {
+impl TelemetryRecordPacketizer {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl Packetizer<Frame, TelemetryRecord> for TelemetryPacketizer {
+impl Packetizer<Frame, TelemetryRecord> for TelemetryRecordPacketizer {
     fn packets<I>(&self, input: I) -> impl Iterator<Item = TelemetryRecord>
     where
         I: Iterator<Item = Frame>,
     {
-        PacketizerIterator::new(input)
+        TelemetryRecordIterator::new(input)
     }
 }
 
