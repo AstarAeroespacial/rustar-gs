@@ -115,7 +115,6 @@ async fn main() {
                     }
                 }
             }
-
             // Cuando llega un nuevo pase calculado, actualizar timer
             Some(new_pass) = next_pass_rx.recv() => {
                 next_pass = new_pass;
