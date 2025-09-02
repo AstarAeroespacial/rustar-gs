@@ -5,7 +5,7 @@ members = [
     "antenna-controller",
     "ground-station",
     "framing",
-    "demod",
+    "demod", "cli",
     "telemetry",
     "packetizer",
 ]
