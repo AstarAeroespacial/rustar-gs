@@ -57,125 +57,134 @@ impl Packetizer<Frame, TelemetryRecord> for TelemetryRecordPacketizer {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use hdlc::frame::{Control, UnnumberedType};
+#[cfg(test)]
+mod tests {
+    use hdlc::frame::{Control, UnnumberedType};
 
-//     use super::*;
+    use super::*;
 
-//     #[test]
-//     fn test_telemetry_packetizer_empty() {
-//         let packetizer = TelemetryPacketizer::new();
-//         let frames: Vec<Frame> = vec![];
-//         let packets: Vec<TelemetryRecord> = packetizer.packets(frames.into_iter()).collect();
-//         assert_eq!(packets.len(), 0);
-//     }
+    #[test]
+    fn test_telemetry_packetizer_empty() {
+        let packetizer = TelemetryRecordPacketizer::new();
+        let frames: Vec<Frame> = vec![];
+        let packets: Vec<TelemetryRecord> = packetizer.packets(frames.into_iter()).collect();
+        assert_eq!(packets.len(), 0);
+    }
 
-//     #[test]
-//     fn test_packetizer_single_valid_frame() {
-//         let packetizer = TelemetryPacketizer::new();
+    #[test]
+    fn test_packetizer_single_valid_frame() {
+        let packetizer = TelemetryRecordPacketizer::new();
 
-//         // Create a frame with valid telemetry data
-//         let telemetry_data = TelemetryData::new(1234567890, 25.5, 12000.0, 150.0, 85);
-//         let telemetry_packet = TelemetryRecord {
-//             pkt_type: 0x01,
-//             length: 17,
-//             payload: telemetry_data,
-//         };
+        // Create a frame with valid telemetry data as JSON
+        let telemetry_record = TelemetryRecord::with_id(
+            "SAT001".to_string(),
+            1234567890,
+            25.5,
+            12.0,
+            150.0,
+            85,
+        );
 
-//         // Convert packet to bytes to simulate frame info
-//         let mut packet_bytes = vec![telemetry_packet.pkt_type];
-//         packet_bytes.extend_from_slice(&telemetry_packet.length.to_be_bytes());
-//         packet_bytes.extend_from_slice(&telemetry_packet.payload.to_bytes());
+        // Convert record to JSON bytes to simulate frame info
+        let json_data = serde_json::to_string(&telemetry_record).unwrap();
+        let packet_bytes = json_data.into_bytes();
 
-//         let control = Control::Unnumbered {
-//             kind: UnnumberedType::Information,
-//             pf: false,
-//         };
-//         let frame = Frame::new(0x01, control, Some(packet_bytes));
-//         let frames = vec![frame];
+        let control = Control::Unnumbered {
+            kind: UnnumberedType::Information,
+            pf: false,
+        };
+        let frame = Frame::new(0x01, control, Some(packet_bytes));
+        let frames = vec![frame];
 
-//         let packets: Vec<TelemetryRecord> = packetizer.packets(frames.into_iter()).collect();
+        let packets: Vec<TelemetryRecord> = packetizer.packets(frames.into_iter()).collect();
 
-//         assert_eq!(packets.len(), 1);
-//         assert_eq!(packets[0].pkt_type, 0x01);
-//         assert_eq!(packets[0].length, 17);
-//     }
+        assert_eq!(packets.len(), 1);
+        assert_eq!(packets[0].id, "SAT001");
+        assert_eq!(packets[0].timestamp, 1234567890);
+        assert_eq!(packets[0].temperature, 25.5);
+        assert_eq!(packets[0].voltage, 12.0);
+        assert_eq!(packets[0].current, 150.0);
+        assert_eq!(packets[0].battery_level, 85);
+    }
 
-//     #[test]
-//     fn test_packetizer_frame_without_info() {
-//         let packetizer = TelemetryPacketizer::new();
+    #[test]
+    fn test_packetizer_frame_without_info() {
+        let packetizer = TelemetryRecordPacketizer::new();
 
-//         let control = Control::Unnumbered {
-//             kind: UnnumberedType::Information,
-//             pf: false,
-//         };
-//         let frame = Frame::new(0x01, control, None);
-//         let frames = vec![frame];
+        let control = Control::Unnumbered {
+            kind: UnnumberedType::Information,
+            pf: false,
+        };
+        let frame = Frame::new(0x01, control, None);
+        let frames = vec![frame];
 
-//         let packets: Vec<TelemetryRecord> = packetizer.packets(frames.into_iter()).collect();
-//         assert_eq!(packets.len(), 0); // No packets should be produced
-//     }
+        let packets: Vec<TelemetryRecord> = packetizer.packets(frames.into_iter()).collect();
+        assert_eq!(packets.len(), 0); // No packets should be produced
+    }
 
-//     #[test]
-//     fn test_packetizer_multiple_frames() {
-//         let packetizer = TelemetryPacketizer::new();
+    #[test]
+    fn test_packetizer_multiple_frames() {
+        let packetizer = TelemetryRecordPacketizer::new();
 
-//         // Create valid telemetry data
-//         let telemetry_data1 = TelemetryData::new(1234567890, 25.5, 12000.0, 150.0, 85);
-//         let telemetry_packet1 = TelemetryRecord {
-//             pkt_type: 0x01,
-//             length: 17,
-//             payload: telemetry_data1,
-//         };
+        // Create valid telemetry records
+        let telemetry_record1 = TelemetryRecord::with_id(
+            "SAT001".to_string(),
+            1234567890,
+            25.5,
+            12.0,
+            150.0,
+            85,
+        );
 
-//         let telemetry_data2 = TelemetryData::new(1234567891, 26.0, 11900.0, 145.0, 84);
-//         let telemetry_packet2 = TelemetryRecord {
-//             pkt_type: 0x01,
-//             length: 17,
-//             payload: telemetry_data2,
-//         };
+        let telemetry_record2 = TelemetryRecord::with_id(
+            "SAT002".to_string(),
+            1234567891,
+            26.0,
+            11.9,
+            145.0,
+            84,
+        );
 
-//         // Convert packets to bytes
-//         let mut packet1_bytes = vec![telemetry_packet1.pkt_type];
-//         packet1_bytes.extend_from_slice(&telemetry_packet1.length.to_be_bytes());
-//         packet1_bytes.extend_from_slice(&telemetry_packet1.payload.to_bytes());
+        // Convert records to JSON bytes
+        let json_data1 = serde_json::to_string(&telemetry_record1).unwrap();
+        let packet1_bytes = json_data1.into_bytes();
 
-//         let mut packet2_bytes = vec![telemetry_packet2.pkt_type];
-//         packet2_bytes.extend_from_slice(&telemetry_packet2.length.to_be_bytes());
-//         packet2_bytes.extend_from_slice(&telemetry_packet2.payload.to_bytes());
+        let json_data2 = serde_json::to_string(&telemetry_record2).unwrap();
+        let packet2_bytes = json_data2.into_bytes();
 
-//         let control = Control::Unnumbered {
-//             kind: UnnumberedType::Information,
-//             pf: false,
-//         };
+        let control = Control::Unnumbered {
+            kind: UnnumberedType::Information,
+            pf: false,
+        };
 
-//         let frame1 = Frame::new(0x01, control.clone(), Some(packet1_bytes));
-//         let frame2 = Frame::new(0x01, control.clone(), Some(packet2_bytes));
-//         let frame3 = Frame::new(0x01, control, None); // Frame without info
+        let frame1 = Frame::new(0x01, control.clone(), Some(packet1_bytes));
+        let frame2 = Frame::new(0x01, control.clone(), Some(packet2_bytes));
+        let frame3 = Frame::new(0x01, control, None); // Frame without info
 
-//         let frames = vec![frame1, frame2, frame3];
+        let frames = vec![frame1, frame2, frame3];
 
-//         let packets: Vec<TelemetryPacket> = packetizer.packets(frames.into_iter()).collect();
-//         assert_eq!(packets.len(), 2); // Only 2 packets should be produced (frame3 has no info)
-//         assert_eq!(packets[0].payload.timestamp, 1234567890);
-//         assert_eq!(packets[1].payload.timestamp, 1234567891);
-//     }
+        let packets: Vec<TelemetryRecord> = packetizer.packets(frames.into_iter()).collect();
+        assert_eq!(packets.len(), 2); // Only 2 packets should be produced (frame3 has no info)
+        assert_eq!(packets[0].id, "SAT001");
+        assert_eq!(packets[0].timestamp, 1234567890);
+        assert_eq!(packets[1].id, "SAT002");
+        assert_eq!(packets[1].timestamp, 1234567891);
+    }
 
-//     #[test]
-//     fn test_packetizer_invalid_data() {
-//         let packetizer = TelemetryPacketizer::new();
+    #[test]
+    fn test_packetizer_invalid_data() {
+        let packetizer = TelemetryRecordPacketizer::new();
 
-//         // Create a frame with invalid telemetry data (too short)
-//         let invalid_data = vec![0x01]; // Only type, no length or payload
-//         let control = Control::Unnumbered {
-//             kind: UnnumberedType::Information,
-//             pf: false,
-//         };
-//         let frame = Frame::new(0x01, control, Some(invalid_data));
-//         let frames = vec![frame];
+        // Create a frame with invalid JSON data
+        let invalid_data = b"invalid json data".to_vec();
+        let control = Control::Unnumbered {
+            kind: UnnumberedType::Information,
+            pf: false,
+        };
+        let frame = Frame::new(0x01, control, Some(invalid_data));
+        let frames = vec![frame];
 
-//         let packets: Vec<TelemetryPacket> = packetizer.packets(frames.into_iter()).collect();
-//         assert_eq!(packets.len(), 0); // No packets should be produced due to invalid data
-//     }
-// }
+        let packets: Vec<TelemetryRecord> = packetizer.packets(frames.into_iter()).collect();
+        assert_eq!(packets.len(), 0); // No packets should be produced due to invalid data
+    }
+}
