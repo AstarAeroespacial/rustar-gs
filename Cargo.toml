@@ -5,6 +5,8 @@ members = [
     "antenna-controller",
     "ground-station",
     "framing",
-    "demod", "packetizer",
+    "demod",
+    "telemetry",
+    "packetizer",
 ]
 resolver = "3"
