@@ -1,3 +1,4 @@
+use crate::time::TimeProvider;
 use antenna_controller::{self, AntennaController, mock::MockController};
 use demod::{Demodulator, example::ExampleDemod};
 use framing::{deframe::Deframer, mock::MockDeframer};
@@ -5,14 +6,13 @@ use std::{
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
-        mpsc,
     },
-    thread,
     time::Duration,
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
+    sync::mpsc,
     task::spawn_blocking,
 };
 use tracking::{Tracker, get_next_pass};
@@ -22,8 +22,6 @@ mod time;
 use crate::time::MockClock as Clock;
 #[cfg(not(feature = "time_mock"))]
 use crate::time::SystemClock as Clock;
-
-use crate::time::TimeProvider;
 
 #[tokio::main]
 async fn main() {
@@ -48,15 +46,21 @@ async fn main() {
     )
     .unwrap();
 
-    dbg!(&next_pass);
+    let mut timer =
+        Duration::from_secs_f64((next_pass.start - Clock::now().timestamp() as f64).max(1.0));
 
-    let mut timer = Duration::from_secs_f64(next_pass.start - Clock::now().timestamp() as f64);
     println!("\nNext pass is in {:?} seconds.\n", timer.as_secs());
 
     let sleep = tokio::time::sleep(timer);
     tokio::pin!(sleep);
 
     let listener = TcpListener::bind("localhost:9999").await.unwrap();
+
+    // Estado para controlar si ya hay un tracking en progreso
+    let mut tracking_in_progress = false;
+
+    // Canal para comunicar el siguiente pase
+    let (next_pass_tx, mut next_pass_rx) = mpsc::channel(1);
 
     loop {
         tokio::select! {
@@ -111,88 +115,106 @@ async fn main() {
                     }
                 }
             }
-            _ = &mut sleep => {
+            // Cuando llega un nuevo pase calculado, actualizar timer
+            Some(new_pass) = next_pass_rx.recv() => {
+                next_pass = new_pass;
+                tracking_in_progress = false; // Marcar que el tracking terminó
+
+                let time_until_pass = (next_pass.start - Clock::now().timestamp() as f64).max(1.0);
+                timer = Duration::from_secs_f64(time_until_pass);
+
+                println!("\nNext pass calculated! Will start in {:?} seconds.\n", timer.as_secs());
+
+                sleep.as_mut().reset(tokio::time::Instant::now() + timer);
+            }
+
+            _ = &mut sleep, if !tracking_in_progress => {
                 println!("\nSTARTING PASS\n");
+                tracking_in_progress = true; // Marcar que comenzó el tracking
 
-                let tracker = Tracker::new(&observer, elements.clone()).unwrap();
+                let observer_clone = observer.clone();
+                let elements_clone = elements.clone();
+                let next_pass_tx_clone = next_pass_tx.clone();
 
-                spawn_blocking(move || {
+                // Lanzar tracking en background
+                tokio::spawn(async move {
 
-                    // SETUP TRACK
+                    // INIT SETUP
+                    let tracker = Tracker::new(&observer_clone, elements_clone.clone()).unwrap();
                     let stop = Arc::new(AtomicBool::new(false));
-
-                    let (tx_samples, rx_samples) = mpsc::channel();
-
+                    let (tx_samples, mut rx_samples) = mpsc::channel(100);
                     let demodulator = ExampleDemod::new();
                     let deframer = MockDeframer::new();
+                    let controller = Arc::new(Mutex::new(MockController));
+                    // END SETUP
 
-                    let observations = (0..).take(5)
-                        .map(|_| thread::sleep(Duration::from_secs(1)))
-                        .map(move |_| {
-                            tracker.track(Clock::now()).unwrap()
-                        });
-
-
-                    let controller = Arc::new(Mutex::new(
-                        MockController
-                    ));
-                    // END SETUP TRACK
-
-                    // BEGIN TRACKING
-                    let bits = demodulator.bits(rx_samples.iter());
-                    let frames = deframer.frames(bits);
-
+                    // SDR
                     let stop_clone = stop.clone();
-                    let sdr_handle = thread::spawn(move || {
+                    let sdr_handle = tokio::spawn(async move {
                         while !stop_clone.load(Ordering::Relaxed) {
-                            tx_samples.send(vec![0f64]).unwrap();
-                            thread::sleep(Duration::from_millis(200));
+                            if tx_samples.send(vec![0f64]).await.is_err() {
+                                break;
+                            }
+                            tokio::time::sleep(Duration::from_millis(200)).await;
                         }
                     });
 
+                    // TRACKING
                     let stop_clone = stop.clone();
                     let controller_clone = controller.clone();
+                    let tracker_handle = tokio::spawn(async move {
+                        for i in 0..5 {
+                            tokio::time::sleep(Duration::from_secs(1)).await;
+                            let obs = tracker.track(Clock::now()).unwrap();
 
-                    let tracker_handle = thread::spawn(move || {
-                        for obs in observations {
-                            dbg!(&obs);
+                            println!("Tracking step {}: Az={:.1}°, El={:.1}°",
+                                     i, obs.azimuth.to_degrees(), obs.elevation.to_degrees());
 
                             controller_clone
                                 .lock()
                                 .unwrap()
-                                .send(obs.azimuth, obs.elevation, "sat-name", 1000)
+                                .send(obs.azimuth.to_degrees(), obs.elevation.to_degrees(), "ISS", 145800)
                                 .unwrap();
                         }
 
                         println!("\nPass ended, stopping SDR and tracker.\n");
-
                         stop_clone.store(true, Ordering::Relaxed);
                     });
 
-                    for frame in frames {
-                        dbg!(&frame);
-                    }
+                    // SAMPLES
+                    let frame_handle = tokio::spawn(async move {
+                        let mut sample_batches = Vec::new();
 
-                    tracker_handle.join().unwrap();
-                    sdr_handle.join().unwrap();
+                        while let Some(samples) = rx_samples.recv().await {
+                            sample_batches.push(samples);
+                        }
 
-                }).await.unwrap();
+                        let bits = demodulator.bits(sample_batches.into_iter());
+                        let frames = deframer.frames(bits);
 
-                // END TRACKING
+                        for _frame in frames {
+                            // Process frame
+                        }
+                    });
 
-                // Reschedule next pass
-                next_pass = get_next_pass(
-                    &observer,
-                    &elements,
-                    Clock::now(),
-                    Duration::from_secs_f64(3600.0 * 6.0),
-                )
-                .unwrap();
+                    let _ = tokio::join!(tracker_handle, sdr_handle, frame_handle);
 
-                timer = Duration::from_secs_f64(next_pass.start - Clock::now().timestamp() as f64);
-                println!("\nNext pass is in {:?} seconds.\n", timer.as_secs());
+                    // NEXT PASS CALCULATION
+                    println!("Calculating next pass...");
+                    let observer_for_calc = observer_clone.clone();
+                    let elements_for_calc = elements_clone.clone();
 
-                sleep.as_mut().reset(tokio::time::Instant::now() + timer);
+                    let new_pass = spawn_blocking(move || {
+                        get_next_pass(
+                            &observer_for_calc,
+                            &elements_for_calc,
+                            Clock::now(),
+                            Duration::from_secs_f64(3600.0 * 6.0)
+                        ).unwrap()
+                    }).await.unwrap();
+
+                    next_pass_tx_clone.send(new_pass).await.unwrap();
+                });
             }
         }
     }

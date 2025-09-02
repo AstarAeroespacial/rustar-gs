@@ -20,7 +20,7 @@ pub struct Pass {
 }
 
 /// The observer is the location of the ground station.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Observer {
     /// Ground station latitude, in degrees.
     latitude: Degrees,
