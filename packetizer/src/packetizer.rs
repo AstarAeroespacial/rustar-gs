@@ -76,14 +76,8 @@ mod tests {
         let packetizer = TelemetryRecordPacketizer::new();
 
         // Create a frame with valid telemetry data as JSON
-        let telemetry_record = TelemetryRecord::with_id(
-            "SAT001".to_string(),
-            1234567890,
-            25.5,
-            12.0,
-            150.0,
-            85,
-        );
+        let telemetry_record =
+            TelemetryRecord::with_id("SAT001".to_string(), 1234567890, 25.5, 12.0, 150.0, 85);
 
         // Convert record to JSON bytes to simulate frame info
         let json_data = serde_json::to_string(&telemetry_record).unwrap();
@@ -127,23 +121,11 @@ mod tests {
         let packetizer = TelemetryRecordPacketizer::new();
 
         // Create valid telemetry records
-        let telemetry_record1 = TelemetryRecord::with_id(
-            "SAT001".to_string(),
-            1234567890,
-            25.5,
-            12.0,
-            150.0,
-            85,
-        );
+        let telemetry_record1 =
+            TelemetryRecord::with_id("SAT001".to_string(), 1234567890, 25.5, 12.0, 150.0, 85);
 
-        let telemetry_record2 = TelemetryRecord::with_id(
-            "SAT002".to_string(),
-            1234567891,
-            26.0,
-            11.9,
-            145.0,
-            84,
-        );
+        let telemetry_record2 =
+            TelemetryRecord::with_id("SAT002".to_string(), 1234567891, 26.0, 11.9, 145.0, 84);
 
         // Convert records to JSON bytes
         let json_data1 = serde_json::to_string(&telemetry_record1).unwrap();
