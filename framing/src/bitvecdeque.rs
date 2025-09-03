@@ -65,7 +65,7 @@ impl BitVecDeque {
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
-        let blocks_needed = (capacity + BITS_PER_BLOCK - 1) / BITS_PER_BLOCK;
+        let blocks_needed = capacity.div_ceil(BITS_PER_BLOCK);
         Self {
             blocks: VecDeque::with_capacity(blocks_needed),
             front_offset: 0,
@@ -287,8 +287,7 @@ impl BitVecDeque {
             self.back_used = (last_bit_pos % BITS_PER_BLOCK) + 1;
 
             // Remover bloques vacíos al final
-            let needed_blocks =
-                (self.front_offset + self.len + BITS_PER_BLOCK - 1) / BITS_PER_BLOCK;
+            let needed_blocks = (self.front_offset + self.len).div_ceil(BITS_PER_BLOCK);
             while self.blocks.len() > needed_blocks {
                 self.blocks.pop_back();
             }
@@ -352,6 +351,12 @@ impl From<BitVecDeque> for BitVec {
             bitvec.push(deque.get_unchecked(i));
         }
         bitvec
+    }
+}
+
+impl Default for BitVecDeque {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

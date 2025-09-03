@@ -31,6 +31,12 @@ impl<I> MockDeframer<I> {
     }
 }
 
+impl<I> Default for MockDeframer<I> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<B, I> Deframer<B, MockFrame> for MockDeframer<I>
 where
     I: Iterator<Item = B>,

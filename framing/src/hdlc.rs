@@ -113,6 +113,12 @@ impl<I> HdlcDeframer<I> {
     }
 }
 
+impl<I> Default for HdlcDeframer<I> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<I> Deframer<Vec<bool>, Frame> for HdlcDeframer<I>
 where
     I: Iterator<Item = Vec<bool>>,
@@ -227,9 +233,7 @@ mod tests {
         let deframer = HdlcDeframer::new();
         let bits1 = frame_bits_with_info(Some(vec![0x01]));
         let bits2 = frame_bits_with_info(Some(vec![0x02]));
-        let mut input = Vec::new();
-        input.push(bits1.clone());
-        input.push(bits2.clone());
+        let input = vec![bits1.clone(), bits2.clone()];
         let frames: Vec<Frame> = deframer.frames(input.into_iter()).collect();
         assert_eq!(frames.len(), 2);
         assert_eq!(frames[0].to_bits(), bits1);
@@ -241,10 +245,11 @@ mod tests {
         let deframer = HdlcDeframer::new();
         let bits1 = frame_bits_with_info(Some(vec![0x01]));
         let bits2 = frame_bits_with_info(Some(vec![0x02]));
-        let mut input = Vec::new();
-        input.push(bits1.clone());
-        input.push(vec![true, true, false, false, true]); // garbage
-        input.push(bits2.clone());
+        let input = vec![
+            bits1.clone(),
+            vec![true, true, false, false, true], // garbage
+            bits2.clone(),
+        ];
         let frames: Vec<Frame> = deframer.frames(input.into_iter()).collect();
         assert_eq!(frames.len(), 2);
         assert_eq!(frames[0].to_bits(), bits1);

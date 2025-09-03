@@ -28,7 +28,7 @@ where
     type Item = TelemetryRecord;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(frame) = self.input.next() {
+        for frame in self.input.by_ref() {
             if let Some(info) = frame.info {
                 if let Ok(packet) = serde_json::from_str(&String::from_utf8_lossy(&info)) {
                     return Some(packet);
@@ -41,6 +41,12 @@ where
 
 /// Telemetry packetizer implementation for HDLC Frame to TelemetryPacket conversion.
 pub struct TelemetryRecordPacketizer;
+
+impl Default for TelemetryRecordPacketizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TelemetryRecordPacketizer {
     pub fn new() -> Self {
