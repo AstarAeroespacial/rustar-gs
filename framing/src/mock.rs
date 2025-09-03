@@ -5,7 +5,7 @@ pub struct MockFrame {}
 
 pub struct MockDeframingIterator<I, B> {
     input: I,
-    buffer: Vec<B>,
+    _buffer: Vec<B>,
 }
 
 impl<I, B> Iterator for MockDeframingIterator<I, B>
@@ -31,6 +31,12 @@ impl<I> MockDeframer<I> {
     }
 }
 
+impl<I> Default for MockDeframer<I> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<B, I> Deframer<B, MockFrame> for MockDeframer<I>
 where
     I: Iterator<Item = B>,
@@ -41,7 +47,7 @@ where
     fn frames(&self, input: Self::Input) -> Self::Output {
         MockDeframingIterator {
             input,
-            buffer: Vec::new(),
+            _buffer: Vec::new(),
         }
     }
 }

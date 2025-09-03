@@ -138,7 +138,7 @@ pub fn get_next_pass(
 
     let oe = predict_rs::predict::ObserverElements {
         observer: &observer,
-        elements: elements,
+        elements,
         constants: &constants,
     };
 

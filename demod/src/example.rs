@@ -2,6 +2,12 @@ use crate::Demodulator;
 
 pub struct ExampleDemod {}
 
+impl Default for ExampleDemod {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExampleDemod {
     pub fn new() -> Self {
         Self {}
