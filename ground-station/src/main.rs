@@ -15,6 +15,7 @@ use tokio::{
     sync::mpsc,
     task::spawn_blocking,
 };
+use packetizer::{packetizer::TelemetryRecordPacketizer, Packetizer};
 use tracking::{Tracker, get_next_pass};
 mod time;
 
@@ -145,6 +146,7 @@ async fn main() {
                     let (tx_samples, mut rx_samples) = mpsc::channel(100);
                     let demodulator = ExampleDemod::new();
                     let deframer = MockDeframer::new();
+                    let packetizer = TelemetryRecordPacketizer::new();
                     let controller = Arc::new(Mutex::new(MockController));
                     // END SETUP
 
@@ -191,9 +193,10 @@ async fn main() {
 
                         let bits = demodulator.bits(sample_batches.into_iter());
                         let frames = deframer.frames(bits);
-
-                        for _frame in frames {
-                            // Process frame
+                        let packets = packetizer.packets(frames);
+                        
+                        for _packet in packets {
+                            // Send packets via mqtt
                         }
                     });
 
