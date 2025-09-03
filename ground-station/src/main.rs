@@ -1,7 +1,8 @@
 use crate::time::TimeProvider;
 use antenna_controller::{self, AntennaController, mock::MockController};
 use demod::{Demodulator, example::ExampleDemod};
-use framing::{deframe::Deframer, mock::MockDeframer};
+use framing::{deframe::Deframer, hdlc::HdlcDeframer};
+use packetizer::{Packetizer, packetizer::TelemetryRecordPacketizer};
 use std::{
     sync::{
         Arc, Mutex,
@@ -15,7 +16,6 @@ use tokio::{
     sync::mpsc,
     task::spawn_blocking,
 };
-use packetizer::{packetizer::TelemetryRecordPacketizer, Packetizer};
 use tracking::{Tracker, get_next_pass};
 mod time;
 
@@ -145,7 +145,7 @@ async fn main() {
                     let stop = Arc::new(AtomicBool::new(false));
                     let (tx_samples, mut rx_samples) = mpsc::channel(100);
                     let demodulator = ExampleDemod::new();
-                    let deframer = MockDeframer::new();
+                    let deframer = HdlcDeframer::new();
                     let packetizer = TelemetryRecordPacketizer::new();
                     let controller = Arc::new(Mutex::new(MockController));
                     // END SETUP
@@ -194,7 +194,7 @@ async fn main() {
                         let bits = demodulator.bits(sample_batches.into_iter());
                         let frames = deframer.frames(bits);
                         let packets = packetizer.packets(frames);
-                        
+
                         for _packet in packets {
                             // Send packets via mqtt
                         }
