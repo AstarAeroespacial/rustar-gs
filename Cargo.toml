@@ -7,6 +7,6 @@ members = [
     "framing",
     "demod", "cli",
     "telemetry",
-    "packetizer",
+    "packetizer", "mqtt-client",
 ]
 resolver = "3"

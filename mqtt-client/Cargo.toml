@@ -1,0 +1,10 @@
+[package]
+name = "mqtt-client"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rumqttc = "0.24.0"
+tokio = "1.47.1"
+tokio-stream = "0.1.17"
+uuid = "1.18.1"
