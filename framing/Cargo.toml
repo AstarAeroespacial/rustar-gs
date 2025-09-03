@@ -4,4 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-hdlc = { path = "../hdlc" }
+crc-any = "2.5.0"
+bitvec = "1.0"

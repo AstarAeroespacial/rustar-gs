@@ -1,6 +1,6 @@
+use crate::bitvecdeque::BitVecDeque;
 use crate::deframe::Deframer;
-use hdlc::bitvecdeque::BitVecDeque;
-use hdlc::frame::Frame;
+use crate::frame::Frame;
 
 /// Local parser state duplicated here so the iterator can run the same state machine.
 enum ParserState {
@@ -138,8 +138,8 @@ mod tests {
     fn frame_bits_with_info(info: Option<Vec<u8>>) -> Vec<bool> {
         // Use a standard address and control for tests
         let address = 0xFFu8;
-        let control = hdlc::frame::Control::Unnumbered {
-            kind: hdlc::frame::UnnumberedType::Information,
+        let control = crate::frame::Control::Unnumbered {
+            kind: crate::frame::UnnumberedType::Information,
             pf: false,
         };
         let frame = Frame::new(address, control, info);
@@ -164,7 +164,11 @@ mod tests {
     #[test]
     fn test_just_garbage() {
         let deframer = HdlcDeframer::new();
-        let input = vec![vec![true, false, true, false], vec![false, true, true, false], vec![]];
+        let input = vec![
+            vec![true, false, true, false],
+            vec![false, true, true, false],
+            vec![],
+        ];
         let frames: Vec<Frame> = deframer.frames(input.into_iter()).collect();
         assert_eq!(frames.len(), 0);
     }
@@ -253,7 +257,12 @@ mod tests {
         // create two frames with empty info (valid minimal frames)
         let bits1 = frame_bits_with_info(None);
         let bits2 = frame_bits_with_info(None);
-        let input = vec![vec![false, true, true, true], bits1.clone(), bits2.clone(), vec![false, true, true, false]];
+        let input = vec![
+            vec![false, true, true, true],
+            bits1.clone(),
+            bits2.clone(),
+            vec![false, true, true, false],
+        ];
         let frames: Vec<Frame> = deframer.frames(input.into_iter()).collect();
         assert_eq!(frames.len(), 2);
         assert_eq!(frames[0].to_bits(), bits1);
@@ -277,8 +286,8 @@ mod tests {
     fn test_destuffed_frame_matches_original_helper() {
         // Sanity test: bit stuffing/destuffing works as expected
         let original = vec![true, true, true, true, true, true, false, true];
-        let stuffed = hdlc::frame::bit_stuff(&original);
-        let destuffed = hdlc::frame::bit_destuff(&stuffed);
+        let stuffed = crate::frame::bit_stuff(&original);
+        let destuffed = crate::frame::bit_destuff(&stuffed);
         assert_eq!(original, destuffed);
     }
 
@@ -287,7 +296,11 @@ mod tests {
         let deframer = HdlcDeframer::new();
         // garbage, a minimal empty frame, garbage
         let empty_bits = frame_bits_with_info(None);
-        let input = vec![vec![false, true, true, false], empty_bits.clone(), vec![false, true, true, false]];
+        let input = vec![
+            vec![false, true, true, false],
+            empty_bits.clone(),
+            vec![false, true, true, false],
+        ];
         let frames: Vec<Frame> = deframer.frames(input.into_iter()).collect();
         assert_eq!(frames.len(), 1);
         assert_eq!(frames[0].to_bits(), empty_bits);
@@ -298,7 +311,13 @@ mod tests {
         let deframer = HdlcDeframer::new();
         let bits1 = frame_bits_with_info(Some(vec![0x0A]));
         let bits2 = frame_bits_with_info(Some(vec![0x0B]));
-        let input = vec![vec![false, true, true, false], bits1.clone(), vec![true, true, false], bits2.clone(), vec![false, true, true, false]];
+        let input = vec![
+            vec![false, true, true, false],
+            bits1.clone(),
+            vec![true, true, false],
+            bits2.clone(),
+            vec![false, true, true, false],
+        ];
         let frames: Vec<Frame> = deframer.frames(input.into_iter()).collect();
         assert_eq!(frames.len(), 2);
         assert_eq!(frames[0].to_bits(), bits1);

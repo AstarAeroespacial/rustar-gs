@@ -1,5 +1,5 @@
 use crate::Packetizer;
-use hdlc::frame::Frame;
+use framing::frame::Frame;
 use telemetry::TelemetryRecord;
 
 /// Iterator that converts frames to packets.
@@ -59,7 +59,7 @@ impl Packetizer<Frame, TelemetryRecord> for TelemetryRecordPacketizer {
 
 #[cfg(test)]
 mod tests {
-    use hdlc::frame::{Control, UnnumberedType};
+    use framing::frame::{Control, UnnumberedType};
 
     use super::*;
 
