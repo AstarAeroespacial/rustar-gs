@@ -226,7 +226,7 @@ impl Frame {
 }
 
 /// Performs HDLC bit stuffing: After five consecutive 1s, insert a 0.
-fn bit_stuff(bits_in: &[Bit]) -> Vec<Bit> {
+pub fn bit_stuff(bits_in: &[Bit]) -> Vec<Bit> {
     let mut stuffed = Vec::new();
     let mut ones_count = 0;
 
@@ -246,7 +246,7 @@ fn bit_stuff(bits_in: &[Bit]) -> Vec<Bit> {
 }
 
 /// Performs HDLC bit destuffing: After five consecutive 1s, remove the following 0 if present.
-fn bit_destuff(bits_in: &[Bit]) -> Vec<Bit> {
+pub fn bit_destuff(bits_in: &[Bit]) -> Vec<Bit> {
     let mut destuffed = Vec::new();
     let mut ones_count = 0;
     let mut i = 0;
