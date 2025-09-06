@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use sgp4::chrono;
 use tracking::{Observer, Tracker};
 
@@ -11,11 +13,16 @@ fn main() {
 
     let buenos_aires = Observer::new(-34.6, -58.4, 2.5);
 
-    let tracker = Tracker::new(&buenos_aires, &elements).unwrap();
+    let tracker = Tracker::new(&buenos_aires, elements).unwrap();
 
-    let now = chrono::Utc::now().timestamp();
+    let now = chrono::Utc::now();
 
     let observation = tracker.track(now).unwrap();
+
+    if let Some(next_pass) = tracker.next_pass(now, Duration::from_secs_f64(3600.0 * 6.0)) {
+        let pass_duration_min = (next_pass.end - next_pass.start) / 60.0;
+        println!("Pass duration: {:.1} minutes", pass_duration_min);
+    }
 
     println!("{:?}", observation);
 }

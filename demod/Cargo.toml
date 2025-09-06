@@ -1,0 +1,10 @@
+[package]
+name = "demod"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+zmq = "0.10.0"
+
+[dev-dependencies]
+itertools = "0.14.0"

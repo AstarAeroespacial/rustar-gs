@@ -18,3 +18,4 @@
 
 # local development database
 api/.data
+modem/gnuradio
