@@ -8,5 +8,6 @@ members = [
     "demod", "cli",
     "telemetry",
     "packetizer",
+    "api"
 ]
 resolver = "3"

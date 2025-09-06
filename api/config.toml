@@ -1,0 +1,14 @@
+# API Server Configuration
+
+[server]
+host = "127.0.0.1"
+port = 9090
+
+[database]
+url = "postgresql://postgres:postgres@localhost:5432/postgres"
+pool_size = 10
+
+[message_broker]
+host = "127.0.0.1"
+port = 8888
+keep_alive = 60
