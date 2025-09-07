@@ -10,8 +10,8 @@ time_mock = []
 tracking = { path = "../tracking" }
 antenna-controller = { path = "../antenna-controller" }
 demod = { path = "../demod" }
-hdlc = { path = "../hdlc" }
 framing = { path = "../framing" }
+packetizer = { path = "../packetizer" }
 chrono = "0.4.41"
 tokio = { version = "1.47.1", features = ["full"] }
 serde = "1.0.219"

@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "tracking",
-    "hdlc",
     "antenna-controller",
     "ground-station",
     "framing",

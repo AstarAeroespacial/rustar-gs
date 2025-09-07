@@ -38,7 +38,7 @@ impl Afsk1200 {
         dbg!(&python_path);
 
         let child = process::Command::new(python_path)
-            .arg(&flowgraph_path.as_ref())
+            .arg(flowgraph_path.as_ref())
             .spawn()
             .map_err(DemodulatorError::GnuRadioProcess)?;
 
