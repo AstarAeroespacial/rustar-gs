@@ -1,4 +1,4 @@
-use rumqttc::{AsyncClient, ClientError, EventLoop, MqttOptions, QoS, Event};
+use rumqttc::{AsyncClient, ClientError, Event, EventLoop, MqttOptions, QoS};
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -15,7 +15,13 @@ impl MqttSender {
 
         let (client, eventloop) = AsyncClient::new(options, 10);
 
-        (Self { client, eventloop: None }, eventloop)
+        (
+            Self {
+                client,
+                eventloop: None,
+            },
+            eventloop,
+        )
     }
 
     pub fn new_standalone(host: &str, port: u16, keep_alive: Duration) -> Self {
@@ -25,13 +31,16 @@ impl MqttSender {
 
         let (client, eventloop) = AsyncClient::new(options, 10);
 
-        Self { client, eventloop: Some(eventloop) }
+        Self {
+            client,
+            eventloop: Some(eventloop),
+        }
     }
 
     pub fn from_client(client: AsyncClient, eventloop: Option<EventLoop>) -> Self {
         Self {
             client: client.clone(),
-            eventloop: eventloop,
+            eventloop,
         }
     }
 
@@ -52,12 +61,11 @@ impl MqttSender {
 
     pub async fn flush(&mut self) {
         if let Some(evl) = &mut self.eventloop {
-            while let Ok(ev) = evl.poll().await { // TODO: Is this ok?
-                if let Event::Outgoing(out) = ev {
-                    if let rumqttc::Outgoing::Publish(_) = out {
-                        break;
-                    }
-                }   
+            while let Ok(ev) = evl.poll().await {
+                // TODO: Is this ok?
+                if let Event::Outgoing(rumqttc::Outgoing::Publish(_)) = ev {
+                    break;
+                }
             }
         }
     }

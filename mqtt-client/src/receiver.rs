@@ -5,12 +5,16 @@ use rumqttc::{
     Packet::Publish,
     QoS,
 };
-use std::{task::Poll, time::Duration};
+use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::Stream;
 use uuid::Uuid;
 
-async fn receiving_loop(mut eventloop: EventLoop, mut close_rx: oneshot::Receiver<()>, tx: mpsc::UnboundedSender<String>) {
+async fn receiving_loop(
+    mut eventloop: EventLoop,
+    mut close_rx: oneshot::Receiver<()>,
+    tx: mpsc::UnboundedSender<String>,
+) {
     loop {
         tokio::select! {
             _ = &mut close_rx => {
@@ -56,9 +60,13 @@ impl MqttReceiver {
             receiving_loop(eventloop, close_rx, tx).await;
         });
 
-        Self { client, rx, close_tx: Some(close_tx) }
+        Self {
+            client,
+            rx,
+            close_tx: Some(close_tx),
+        }
     }
-    
+
     pub fn from_client(client: AsyncClient, eventloop: EventLoop) -> Self {
         let (close_tx, close_rx) = oneshot::channel::<()>();
         let (tx, rx) = mpsc::unbounded_channel();
@@ -67,7 +75,11 @@ impl MqttReceiver {
             receiving_loop(eventloop, close_rx, tx).await;
         });
 
-        Self { client: client.clone(), rx, close_tx: Some(close_tx) }
+        Self {
+            client: client.clone(),
+            rx,
+            close_tx: Some(close_tx),
+        }
     }
 
     pub fn client(&self) -> AsyncClient {
@@ -86,7 +98,6 @@ impl MqttReceiver {
         Ok(())
     }
 }
-
 
 impl Stream for MqttReceiver {
     type Item = String;

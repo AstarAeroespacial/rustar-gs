@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use mqtt_client::receiver::MqttReceiver;
-use tokio;
 use tokio_stream::{self, StreamExt};
 
 #[tokio::main]
@@ -15,7 +14,7 @@ async fn main() {
         let msg = receiver.next().await;
         if let Some(msg) = msg {
             println!("Received message: {}", msg);
-            if msg == "close".to_string() {
+            if msg == *"close" {
                 break;
             }
         }
