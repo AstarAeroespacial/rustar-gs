@@ -1,10 +1,9 @@
-use crate::frame::{Byte, DeframingError};
 use std::{
     default,
     io::{Cursor, Read},
 };
 
-// TelemetryPacket (20 bytes)
+// TelemetryPacket (16 bytes)
 #[derive(Debug, PartialEq)]
 pub struct TelemetryPacket {
     pub pkt_type: u8, // 0x01
@@ -28,39 +27,56 @@ impl default::Default for TelemetryPacket {
     }
 }
 
-impl TryFrom<Vec<Byte>> for TelemetryPacket {
-    type Error = DeframingError;
-
-    fn try_from(info: Vec<Byte>) -> Result<Self, Self::Error> {
-        if info.len() < 3 {
-            // At least need pkt_type (1) + length (2)
-            return Err(DeframingError::InvalidPacketLength);
-        }
-
-        // Read pkt_type (1 byte)
-        let pkt_type = info[0];
-
-        // Read length (2 bytes)
-        let length = u16::from_be_bytes([info[1], info[2]]);
-
-        // Check if we have enough bytes for the payload
-        if info.len() != 3 + length as usize {
-            return Err(DeframingError::PacketLengthMismatch);
-        }
-
-        // Get payload slice
-        let payload_bytes = &info[3..3 + length as usize];
-        let payload = TelemetryData::from_bytes(payload_bytes);
-
-        Ok(TelemetryPacket {
+impl TelemetryPacket {
+    pub fn new(pkt_type: u8, length: u16, payload: TelemetryData) -> TelemetryPacket {
+        TelemetryPacket {
             pkt_type,
             length,
             payload,
-        })
+        }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(16);
+        buf.push(self.pkt_type);
+
+        // Payload length as u16
+        buf.extend_from_slice(&self.length.to_be_bytes());
+
+        // Payload
+        let payload_bytes = self.payload.to_bytes();
+        buf.extend_from_slice(&payload_bytes);
+        buf
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let mut cursor = Cursor::new(bytes);
+
+        // Read pkt_type (1 byte)
+        let mut pkt_type_bytes = [0u8];
+        cursor.read_exact(&mut pkt_type_bytes).unwrap();
+        let pkt_type = u8::from_be_bytes(pkt_type_bytes);
+
+        // Read length (2 bytes)
+        let mut length_bytes = [0u8; 2];
+        cursor.read_exact(&mut length_bytes).unwrap();
+        let length = u16::from_be_bytes(length_bytes);
+
+        // Read payload
+        let mut payload_bytes = vec![0u8; length as usize];
+        cursor.read_exact(&mut payload_bytes).unwrap();
+
+        let payload = TelemetryData::from_bytes(&payload_bytes);
+
+        TelemetryPacket {
+            pkt_type,
+            length,
+            payload,
+        }
     }
 }
 
-// TelemetryData (17 bytes)
+// TelemetryData (10 bytes)
 #[derive(Debug, PartialEq, Clone)]
 pub struct TelemetryData {
     pub timestamp: u32,  // seconds since UNIX epoch
@@ -81,7 +97,7 @@ impl TelemetryData {
         }
     }
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(17);
+        let mut buf = Vec::with_capacity(10);
         buf.extend_from_slice(&self.timestamp.to_be_bytes());
         buf.extend_from_slice(&self.temp.to_be_bytes());
         buf.extend_from_slice(&self.volt.to_be_bytes());
@@ -144,5 +160,17 @@ mod tests {
         assert_eq!(data.volt, data2.volt);
         assert_eq!(data.curr, data2.curr);
         assert_eq!(data.battery_soc, data2.battery_soc);
+    }
+
+    #[test]
+    fn test_telemetry_packet_to_bytes_and_from_bytes() {
+        let payload = TelemetryData::new(654321, 30.0, 4.2, 2.5, 90);
+        let packet = TelemetryPacket::new(1, 17, payload.clone());
+        let bytes = packet.to_bytes();
+        let packet2 = TelemetryPacket::from_bytes(&bytes);
+
+        assert_eq!(packet.pkt_type, packet2.pkt_type);
+        assert_eq!(packet.length, packet2.length);
+        assert_eq!(payload, packet2.payload);
     }
 }

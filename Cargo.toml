@@ -1,12 +1,14 @@
 [workspace]
 members = [
     "tracking",
-    "hdlc",
     "antenna-controller",
     "ground-station",
     "framing",
     "demod", "cli",
     "telemetry",
-    "packetizer", "mqtt-client",
+    "packetizer",
+    "packetizer",
+    "api",
+    "mqtt-client",
 ]
 resolver = "3"
