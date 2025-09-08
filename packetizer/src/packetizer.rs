@@ -65,7 +65,6 @@ impl Packetizer<Frame, TelemetryRecord> for TelemetryRecordPacketizer {
 
 #[cfg(test)]
 mod tests {
-    use framing::frame::{Control, UnnumberedType};
 
     use super::*;
 
@@ -89,11 +88,7 @@ mod tests {
         let json_data = serde_json::to_string(&telemetry_record).unwrap();
         let packet_bytes = json_data.into_bytes();
 
-        let control = Control::Unnumbered {
-            kind: UnnumberedType::Information,
-            pf: false,
-        };
-        let frame = Frame::new(0x01, control, Some(packet_bytes));
+        let frame = Frame::new(Some(packet_bytes));
         let frames = vec![frame];
 
         let packets: Vec<TelemetryRecord> = packetizer.packets(frames.into_iter()).collect();
@@ -111,11 +106,7 @@ mod tests {
     fn test_packetizer_frame_without_info() {
         let packetizer = TelemetryRecordPacketizer::new();
 
-        let control = Control::Unnumbered {
-            kind: UnnumberedType::Information,
-            pf: false,
-        };
-        let frame = Frame::new(0x01, control, None);
+        let frame = Frame::new(None);
         let frames = vec![frame];
 
         let packets: Vec<TelemetryRecord> = packetizer.packets(frames.into_iter()).collect();
@@ -140,14 +131,9 @@ mod tests {
         let json_data2 = serde_json::to_string(&telemetry_record2).unwrap();
         let packet2_bytes = json_data2.into_bytes();
 
-        let control = Control::Unnumbered {
-            kind: UnnumberedType::Information,
-            pf: false,
-        };
-
-        let frame1 = Frame::new(0x01, control.clone(), Some(packet1_bytes));
-        let frame2 = Frame::new(0x01, control.clone(), Some(packet2_bytes));
-        let frame3 = Frame::new(0x01, control, None); // Frame without info
+        let frame1 = Frame::new(Some(packet1_bytes));
+        let frame2 = Frame::new(Some(packet2_bytes));
+        let frame3 = Frame::new(None); // Frame without info
 
         let frames = vec![frame1, frame2, frame3];
 
@@ -165,11 +151,8 @@ mod tests {
 
         // Create a frame with invalid JSON data
         let invalid_data = b"invalid json data".to_vec();
-        let control = Control::Unnumbered {
-            kind: UnnumberedType::Information,
-            pf: false,
-        };
-        let frame = Frame::new(0x01, control, Some(invalid_data));
+
+        let frame = Frame::new(Some(invalid_data));
         let frames = vec![frame];
 
         let packets: Vec<TelemetryRecord> = packetizer.packets(frames.into_iter()).collect();

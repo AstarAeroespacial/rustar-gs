@@ -1,5 +1,5 @@
 pub mod bitvecdeque;
-pub mod deframe;
+pub mod deframer;
 pub mod frame;
-pub mod hdlc;
+pub mod hdlc_deframer;
 pub mod mock;
