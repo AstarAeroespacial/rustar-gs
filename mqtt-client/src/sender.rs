@@ -1,4 +1,4 @@
-use rumqttc::{AsyncClient, ClientError, EventLoop, MqttOptions, QoS};
+use rumqttc::{AsyncClient, ClientError, EventLoop, MqttOptions, QoS, Event};
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -40,6 +40,8 @@ impl MqttSender {
     }
 
     pub async fn publish(&self, topic: &str, payload: &str) -> Result<(), ClientError> {
+        self.client.subscribe(topic, QoS::AtLeastOnce).await?;
+
         self.client
             .publish(topic, QoS::AtLeastOnce, false, payload.as_bytes())
             .await?;
@@ -50,7 +52,13 @@ impl MqttSender {
 
     pub async fn flush(&mut self) {
         if let Some(evl) = &mut self.eventloop {
-            let _ = evl.poll().await;
+            while let Ok(ev) = evl.poll().await { // TODO: Is this ok?
+                if let Event::Outgoing(out) = ev {
+                    if let rumqttc::Outgoing::Publish(_) = out {
+                        break;
+                    }
+                }   
+            }
         }
     }
 }

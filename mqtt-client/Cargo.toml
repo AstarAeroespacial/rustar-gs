@@ -5,6 +5,6 @@ edition = "2024"
 
 [dependencies]
 rumqttc = "0.24.0"
-tokio = "1.47.1"
+tokio = { version = "1.47.1", features = ["full"] }
 tokio-stream = "0.1.17"
-uuid = "1.18.1"
+uuid = { version = "1.18.1", features = ["v4"] }
