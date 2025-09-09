@@ -50,7 +50,7 @@ impl TryFrom<Vec<Bit>> for Frame {
             return Err(DeframingError::InvalidFrameSize);
         }
 
-        // Extract info bits (everything between address and FCS)
+        // Extract info bits (everything between the first flag and FCS)
         let info_bits = &content_bits[..content_bits.len() - 16];
 
         // Extract FCS (last 16 bits)
@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn fcs_on_empty() {
-        // https://crccalc.com/?crc=0&method=CRC-16/IBM-SDLC&datatype=hex&outtype=hex
+        // https://crccalc.com/?crc=&method=CRC-16/IBM-SDLC&datatype=hex&outtype=hex
         let mut crc = CRCu16::crc16_x25();
         crc.digest(b"");
         assert_eq!(crc.get_crc(), 0x00); // validación estándar
