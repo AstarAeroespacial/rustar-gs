@@ -3,103 +3,26 @@ use crc_any::CRCu16;
 pub(crate) type Bit = bool;
 pub(crate) type Byte = u8;
 
-/// Unnumbered format commands/responses.
-#[derive(Debug, Clone, PartialEq)]
-pub enum UnnumberedType {
-    Information, // UI - Unnumbered Information
-    Test,        // TEST - Unnumbered Test
-}
-
-/// Defines the function of the frame.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Control {
-    /// The U format is used to provide additional data link control
-    /// functions and unnumbered information transfer.
-    Unnumbered { kind: UnnumberedType, pf: Bit },
-}
-
 #[derive(Debug)]
 pub enum DeframingError {
-    InvalidControlFrameType,
-    InvalidControlUnnumberedType,
     InvalidFrameSize,
     InvalidPacketLength,
     PacketLengthMismatch,
     FcsMismatch,
 }
 
-impl TryFrom<Byte> for Control {
-    type Error = DeframingError;
-
-    fn try_from(value: Byte) -> Result<Self, Self::Error> {
-        if (value & 0b1100_0000) >> 6 != 0b11 {
-            dbg!("Only U frames supported!");
-            return Err(DeframingError::InvalidControlFrameType);
-        }
-
-        // Mask the M bits.
-        let modifier_bits = value & 0b11_0111;
-
-        let try_kind = match modifier_bits {
-            0b00_0000 => Ok(UnnumberedType::Information),
-            0b00_0111 => Ok(UnnumberedType::Test),
-            _ => {
-                dbg!("Only UI and TEST unnumbered frames supported!");
-                Err(DeframingError::InvalidControlUnnumberedType)
-            }
-        };
-
-        match try_kind {
-            Ok(kind) => {
-                let pf = (value & 0b1000) >> 3 == 1;
-
-                Ok(Self::Unnumbered { kind, pf })
-            }
-            Err(err) => Err(err),
-        }
-    }
-}
-
-impl From<Control> for Byte {
-    fn from(value: Control) -> Self {
-        match value {
-            Control::Unnumbered { kind, pf } => {
-                let byte = 0b1100_0000;
-
-                let kind_bits = match kind {
-                    UnnumberedType::Information => 0b00_0000,
-                    UnnumberedType::Test => 0b00_0111,
-                };
-
-                let pf_bit = if pf { 0b1000 } else { 0b0000 };
-
-                byte | kind_bits | pf_bit
-            }
-        }
-    }
-}
-
 const FLAG: Byte = 0b0111_1110;
-const MIN_FRAME_SIZE: usize = 48; // Start flag (8) + Address(8) + Control(8) + empty Info(0) + FCS(16) + End flag (8)
+const MIN_FRAME_SIZE: usize = 32; // Start flag (8) + empty Info(0) + FCS(16) + End flag (8)
 
 /// Represents an HDLC frame.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Frame {
-    address: Byte,
-    pub control: Control,
     pub info: Option<Vec<Byte>>,
     fcs: FrameCheckingSequence,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 struct FrameCheckingSequence(u16);
-
-impl FrameCheckingSequence {
-    /// Converts a FrameCheckingSequence into a vector of bits.
-    pub fn to_bits(&self) -> Vec<Bit> {
-        (0..16).map(|i| (self.0 & (1 << i)) != 0).collect()
-    }
-}
 
 impl TryFrom<Vec<Bit>> for Frame {
     type Error = DeframingError;
@@ -109,34 +32,31 @@ impl TryFrom<Vec<Bit>> for Frame {
             return Err(DeframingError::InvalidFrameSize);
         }
 
+        // Verify start and end flags
+        let start_flag = &bits[0..8];
+        let end_flag = &bits[bits.len() - 8..];
+        let expected_flag = unpack_lsb(FLAG);
+
+        if start_flag != expected_flag || end_flag != expected_flag {
+            return Err(DeframingError::InvalidFrameSize);
+        }
+
         // Remove flags
         let content_bits = &bits[8..bits.len() - 8];
-        let mut idx = 0;
 
         let content_bits = bit_destuff(content_bits);
 
-        // Extract address
-        let address_bits = &content_bits[idx..idx + 8];
-        let address = bits_to_byte(address_bits);
-        idx += 8;
+        if content_bits.len() < 16 {
+            return Err(DeframingError::InvalidFrameSize);
+        }
 
-        // Extract control
-        let control_bits = &content_bits[idx..idx + 8];
-        let control_byte = bits_to_byte(control_bits);
-        let control = Control::try_from(control_byte)?;
-        idx += 8;
-
-        // Extract info bits (everything between address and FCS)
-        let info_bits = if content_bits.len() < idx + 16 {
-            &[]
-        } else {
-            &content_bits[idx..content_bits.len() - 16]
-        };
+        // Extract info bits (everything between the first flag and FCS)
+        let info_bits = &content_bits[..content_bits.len() - 16];
 
         // Extract FCS (last 16 bits)
         let fcs_bits = &content_bits[content_bits.len() - 16..];
-        let fcs_val = bits_to_u16(fcs_bits);
-        let fcs = FrameCheckingSequence(fcs_val);
+        let received_fcs = bits_to_u16(fcs_bits);
+        let fcs = FrameCheckingSequence(received_fcs);
 
         // Convert info_bits to bytes
         let info_bytes = if info_bits.is_empty() {
@@ -153,14 +73,12 @@ impl TryFrom<Vec<Bit>> for Frame {
             Some(bytes)
         };
 
-        let calc_fcs = calculate_fcs(address, control_byte, &info_bytes);
+        let calc_fcs = calculate_fcs(&info_bytes);
         if calc_fcs != fcs.0 {
             return Err(DeframingError::FcsMismatch);
         }
 
         Ok(Frame {
-            address,
-            control,
             info: info_bytes,
             fcs,
         })
@@ -168,55 +86,54 @@ impl TryFrom<Vec<Bit>> for Frame {
 }
 
 impl Frame {
-    pub fn new(address: Byte, control: Control, info: Option<Vec<Byte>>) -> Self {
+    pub fn new(info: Option<Vec<Byte>>) -> Self {
         // 1. Preparar bytes para el CRC
-        let mut data = Vec::new();
-        data.push(address);
-        data.push(control.clone().into());
+        let mut data: Vec<u8> = Vec::new();
 
         if let Some(ref payload) = info {
             data.extend(payload);
         }
 
-        // 2. Calcular el FCS (CRC-16-CCITT-FALSE)
-        let mut crc = CRCu16::crc16ccitt_false();
-        crc.digest(&data);
-        let fcs = FrameCheckingSequence(crc.get_crc());
+        // 2. Calcular el FCS
+        let crc = calculate_fcs(&info);
+        let fcs = FrameCheckingSequence(crc);
 
         // 3. Crear el frame
-        Frame {
-            address,
-            control,
-            info,
-            fcs,
-        }
+        Frame { info, fcs }
     }
 
     /// Converts a Frame into a vector of bits.
     pub fn to_bits(&self) -> Vec<Bit> {
         let mut raw_bits = Vec::new();
 
-        // Add fields without bit stuffing
-        raw_bits.extend(byte_to_bits(self.address));
-        raw_bits.extend(byte_to_bits(self.control.clone().into()));
         if let Some(info) = &self.info {
             for byte in info {
-                raw_bits.extend(byte_to_bits(*byte));
+                raw_bits.extend(unpack_lsb(*byte));
             }
         }
-        raw_bits.extend(self.fcs.to_bits());
+
+        // Append CRC, in little endian. Not ISO compliant, but it's what GNU radio's HDLC framer does.
+        // https://github.com/gnuradio/gnuradio/blob/721e477cdb4ed22214ed886d6063cff2dac7d0b5/gr-digital/lib/hdlc_framer_pb_impl.cc#L133
+        let crc_bytes = self.fcs.0.to_le_bytes();
+        raw_bits.extend(unpack_lsb(crc_bytes[0]));
+        raw_bits.extend(unpack_lsb(crc_bytes[1]));
 
         // Apply bit stuffing to the entire content between flags
         let stuffed_bits = bit_stuff(&raw_bits);
 
         // Build frame with flags
         let mut bits = Vec::new();
-        bits.extend(byte_to_bits(FLAG));
+        bits.extend(unpack_lsb(FLAG));
         bits.extend(stuffed_bits);
-        bits.extend(byte_to_bits(FLAG));
+        bits.extend(unpack_lsb(FLAG));
 
         bits
     }
+}
+
+/// Helper to convert a Byte to a Vec<Bit>, Least Significant Bit first
+fn unpack_lsb(byte: Byte) -> Vec<Bit> {
+    (0..8).map(|i| (byte & (1 << i)) != 0).collect()
 }
 
 /// Performs HDLC bit stuffing: After five consecutive 1s, insert a 0.
@@ -266,29 +183,17 @@ pub fn bit_destuff(bits_in: &[Bit]) -> Vec<Bit> {
     destuffed
 }
 
-/// Calculates the FCS (CRC-16-CCITT-FALSE) for the given address, control, and info bytes.
-fn calculate_fcs(address: Byte, control_byte: Byte, info_bytes: &Option<Vec<Byte>>) -> u16 {
+/// Calculates the FCS for the given info bytes.
+fn calculate_fcs(info_bytes: &Option<Vec<Byte>>) -> u16 {
     let mut data = Vec::new();
-    data.push(address);
-    data.push(control_byte);
+
     if let Some(payload) = info_bytes {
         data.extend(payload);
     }
-    let mut crc = CRCu16::crc16ccitt_false();
+
+    let mut crc = CRCu16::crc16_x25();
     crc.digest(&data);
     crc.get_crc()
-}
-
-/// Helper to convert a Byte to a Vec<Bit>, Least Significant Bit first
-fn byte_to_bits(byte: Byte) -> Vec<Bit> {
-    (0..8).map(|i| (byte & (1 << i)) != 0).collect()
-}
-
-/// Converts a slice of bits (LSB first) to a byte
-fn bits_to_byte(bits: &[Bit]) -> u8 {
-    bits.iter()
-        .enumerate()
-        .fold(0u8, |acc, (i, &b)| acc | ((b as u8) << i))
 }
 
 /// Converts a slice of bits (LSB first) to a u16
@@ -298,15 +203,57 @@ fn bits_to_u16(bits: &[Bit]) -> u16 {
         .fold(0u16, |acc, (i, &b)| acc | ((b as u16) << i))
 }
 
+/// Specialized function for packing boolean slices into u8s (MSB first).
+/// This is more efficient than the generic version for bool inputs.
+pub fn pack_bools_to_bytes_msb(bits: &[bool]) -> Vec<u8> {
+    bits.chunks(8)
+        .map(|chunk| {
+            chunk
+                .iter()
+                .enumerate()
+                .fold(0u8, |acc, (i, &bit)| acc | ((bit as u8) << (7 - i)))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn fcs_on_known_data() {
-        let mut crc = CRCu16::crc16ccitt_false();
-        crc.digest(b"123456789");
-        assert_eq!(crc.get_crc(), 0x29B1); // validación estándar
+        // https://crccalc.com/?crc=123456789&method=CRC-16/IBM-SDLC&datatype=hex&outtype=hex
+        let mut crc = CRCu16::crc16_x25();
+        crc.digest(&[0x12, 0x34, 0x56, 0x78, 0x09]);
+        assert_eq!(crc.get_crc(), 0xA55E); // validación estándar
+    }
+
+    #[test]
+    fn fcs_on_empty() {
+        // https://crccalc.com/?crc=&method=CRC-16/IBM-SDLC&datatype=hex&outtype=hex
+        let mut crc = CRCu16::crc16_x25();
+        crc.digest(b"");
+        assert_eq!(crc.get_crc(), 0x00); // validación estándar
+    }
+
+    #[test]
+    fn frame_empty_payload() {
+        let bits = Frame::new(None).to_bits();
+        let packed = pack_bools_to_bytes_msb(&bits);
+
+        let expected = vec![0x7e_u8, 0x00, 0x00, 0x7e];
+        assert_eq!(packed, expected);
+    }
+
+    #[test]
+    fn frame_some_payload() {
+        let bits = Frame::new(Some("HOLA FRANK".as_bytes().to_vec())).to_bits();
+        let packed = pack_bools_to_bytes_msb(&bits);
+
+        let expected = vec![
+            0x7e_u8, 0x12, 0xf2, 0x32, 0x82, 0x04, 0x62, 0x4a, 0x82, 0x72, 0xd2, 0x09, 0x43, 0x7e,
+        ];
+        assert_eq!(packed, expected);
     }
 
     #[test]
@@ -316,6 +263,4 @@ mod tests {
         let expected = input.clone();
         assert_eq!(bit_stuff(&input), expected);
     }
-
-    // ...other frame tests omitted for brevity...
 }
