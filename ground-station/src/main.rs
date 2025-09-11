@@ -1,8 +1,8 @@
 use crate::time::TimeProvider;
 use antenna_controller::{self, AntennaController, mock::MockController};
 use demod::{Demodulator, example::ExampleDemod};
-use mqtt_client::{receiver::MqttReceiver, sender::MqttSender};
 use framing::{deframer::Deframer, hdlc_deframer::HdlcDeframer};
+use mqtt_client::{receiver::MqttReceiver, sender::MqttSender};
 use packetizer::{Packetizer, packetizer::TelemetryRecordPacketizer};
 use std::{
     sync::{
@@ -40,8 +40,6 @@ async fn main() {
         "2 25544  51.6355 332.1708 0003307 260.2831  99.7785 15.50129787525648".as_bytes(),
     )
     .unwrap();
-
-
 
     let (mqtt_send, eventloop) = MqttSender::new("127.0.0.1", 8888, Duration::from_secs(30));
     let mut mqtt_recv = MqttReceiver::from_client(mqtt_send.client(), eventloop);
