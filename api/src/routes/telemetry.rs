@@ -28,7 +28,10 @@ pub async fn get_latest_telemetry(
     let req = req.into_inner();
     let amount = req.amount.unwrap_or(10);
 
-    match service.get_latest_telemetry(satellite.into_inner(), amount).await {
+    match service
+        .get_latest_telemetry(satellite.into_inner(), amount)
+        .await
+    {
         Ok(telemetry) => Ok(actix_web::web::Json(telemetry)),
         Err(e) => {
             error!("Error fetching latest telemetry: {}", e);

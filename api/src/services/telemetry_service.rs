@@ -37,7 +37,10 @@ impl TelemetryService {
         start_time: Option<i64>,
         end_time: Option<i64>,
     ) -> Result<Vec<TelemetryResponse>, Box<dyn std::error::Error + Send + Sync>> {
-        let records = self.repository.get_historic(sat_name, start_time, end_time).await?;
+        let records = self
+            .repository
+            .get_historic(sat_name, start_time, end_time)
+            .await?;
         let responses = records
             .into_iter()
             .map(|record| TelemetryResponse {

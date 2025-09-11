@@ -49,8 +49,6 @@ impl MqttSender {
     }
 
     pub async fn publish(&self, topic: &str, payload: &str) -> Result<(), ClientError> {
-        self.client.subscribe(topic, QoS::AtLeastOnce).await?;
-
         self.client
             .publish(topic, QoS::AtLeastOnce, false, payload.as_bytes())
             .await?;
