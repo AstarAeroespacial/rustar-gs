@@ -1,5 +1,5 @@
 use crate::bitvecdeque::BitVecDeque;
-use crate::deframe::Deframer;
+use crate::deframer::Deframer;
 use crate::frame::Frame;
 
 /// Local parser state duplicated here so the iterator can run the same state machine.
@@ -142,13 +142,7 @@ mod tests {
 
     // Helpers for tests -------------------------------------------------
     fn frame_bits_with_info(info: Option<Vec<u8>>) -> Vec<bool> {
-        // Use a standard address and control for tests
-        let address = 0xFFu8;
-        let control = crate::frame::Control::Unnumbered {
-            kind: crate::frame::UnnumberedType::Information,
-            pf: false,
-        };
-        let frame = Frame::new(address, control, info);
+        let frame = Frame::new(info);
         frame.to_bits()
     }
 
@@ -158,6 +152,22 @@ mod tests {
         (a, b)
     }
     // End helpers for tests -------------------------------------------------
+
+    #[test]
+    fn frame_to_from_bytes() {
+        let original_info = vec![0x12, 0x34, 0x56, 0x78, 0x09];
+        let frame = Frame::new(Some(original_info.clone()));
+        let bits = frame.to_bits();
+        let parsed_frame = Frame::try_from(bits.clone()).expect("Failed to parse frame");
+
+        // Assert CRC roundtrip: re-serializing should give identical bits
+        let reparsed_bits = parsed_frame.to_bits();
+        assert_eq!(
+            bits, reparsed_bits,
+            "CRC roundtrip failed: bits don't match after re-serialization"
+        );
+        assert_eq!(parsed_frame.info.unwrap(), original_info);
+    }
 
     #[test]
     fn test_empty_input() {
@@ -378,5 +388,48 @@ mod tests {
         // The oversized/invalid frame is dropped by buffer-clearing logic; the following valid frame should be parsed
         assert_eq!(frames.len(), 1);
         assert_eq!(frames[0].to_bits(), valid);
+    }
+
+    #[test]
+    fn test_deframe_bits_one_frame() {
+        let original = Frame::new(Some("HOLA FRANK".as_bytes().to_vec()));
+        let bits = original.to_bits();
+        let (b1, b2) = bits.split_at(bits.len() / 2);
+
+        let mut input = Vec::new();
+        input.push(vec![true, false]); // dummy bytes
+        input.push(b1.to_vec());
+        input.push(b2.to_vec());
+        input.push(vec![false, true]); // dummy bytes
+
+        let deframer = HdlcDeframer::new();
+
+        let frames = deframer.frames(input.into_iter()).collect::<Vec<_>>();
+
+        assert_eq!(original, frames[0]);
+    }
+
+    #[test]
+    fn test_deframe_bits_two_frames() {
+        let frame1 = Frame::new(Some("HOLA FRANK".as_bytes().to_vec()));
+        let frame1_bits = frame1.to_bits();
+        let (b1, b2) = frame1_bits.split_at(frame1_bits.len() / 2);
+
+        let frame2 = Frame::new(Some("{battery:10.0}".as_bytes().to_vec()));
+        let frame2_bits = frame2.to_bits();
+        let (c1, c2) = frame2_bits.split_at(frame2_bits.len() / 2);
+
+        let mut input = Vec::new();
+        input.push(b1.to_vec());
+        input.push(b2.to_vec());
+        input.push(c1.to_vec());
+        input.push(c2.to_vec());
+
+        let deframer = HdlcDeframer::new();
+
+        let frames = deframer.frames(input.into_iter()).collect::<Vec<_>>();
+
+        assert_eq!(frame1, frames[0]);
+        assert_eq!(frame2, frames[1]);
     }
 }

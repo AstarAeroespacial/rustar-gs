@@ -1,8 +1,8 @@
 use crate::time::TimeProvider;
 use antenna_controller::{self, AntennaController, mock::MockController};
 use demod::{Demodulator, example::ExampleDemod};
-use framing::{deframe::Deframer, hdlc::HdlcDeframer};
 use mqtt_client::{receiver::MqttReceiver, sender::MqttSender};
+use framing::{deframer::Deframer, hdlc_deframer::HdlcDeframer};
 use packetizer::{Packetizer, packetizer::TelemetryRecordPacketizer};
 use std::{
     sync::{
