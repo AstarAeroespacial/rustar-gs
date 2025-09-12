@@ -1,5 +1,6 @@
 pub mod afsk1200;
 pub mod example;
+pub mod gr_mock;
 
 pub trait Demodulator<I>
 where
