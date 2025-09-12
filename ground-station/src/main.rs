@@ -1,6 +1,6 @@
 use crate::time::TimeProvider;
 use antenna_controller::{self, AntennaController, mock::MockController};
-use demod::{Demodulator, example::ExampleDemod, gr_mock::GrMockDemodIterator};
+use demod::gr_mock::GrBitSource;
 use framing::{deframer::Deframer, hdlc_deframer::HdlcDeframer};
 use packetizer::{Packetizer, packetizer::TelemetryRecordPacketizer};
 use std::{
@@ -174,7 +174,7 @@ async fn main() {
                     // SAMPLES
                     let stop_clone = stop.clone();
                     let frame_handle = tokio::spawn(async move {
-                        let bits = GrMockDemodIterator::new();
+                        let bits = GrBitSource::new();
                         let frames = deframer.frames(bits);
                         let mut packets = packetizer.packets(frames);
 

@@ -1,7 +1,7 @@
-use demod::gr_mock::GrMockDemodIterator;
+use demod::gr_mock::GrBitSource;
 
 fn main() {
-    let demod = GrMockDemodIterator::new();
+    let demod = GrBitSource::new();
 
     for bits in demod.into_iter() {
         println!("{:?}", bits);

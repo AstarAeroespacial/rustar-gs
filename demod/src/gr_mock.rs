@@ -1,10 +1,10 @@
 const BIT_SOURCE: &str = "tcp://127.0.0.1:5557";
 
-pub struct GrMockDemodIterator {
+pub struct GrBitSource {
     sub_sock: zmq::Socket,
 }
 
-impl GrMockDemodIterator {
+impl GrBitSource {
     pub fn new() -> Self {
         let ctx = zmq::Context::new();
 
@@ -17,7 +17,7 @@ impl GrMockDemodIterator {
     }
 }
 
-impl Iterator for GrMockDemodIterator {
+impl Iterator for GrBitSource {
     type Item = Vec<bool>;
 
     fn next(&mut self) -> Option<Self::Item> {
