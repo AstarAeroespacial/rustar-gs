@@ -1,6 +1,6 @@
 use crate::time::TimeProvider;
 use antenna_controller::{self, AntennaController, mock::MockController};
-use demod::{Demodulator, example::ExampleDemod};
+use demod::gr_mock::GrBitSource;
 use framing::{deframer::Deframer, hdlc_deframer::HdlcDeframer};
 use packetizer::{Packetizer, packetizer::TelemetryRecordPacketizer};
 use std::{
@@ -143,23 +143,11 @@ async fn main() {
                     // INIT SETUP
                     let tracker = Tracker::new(&observer_clone, elements_clone.clone()).unwrap();
                     let stop = Arc::new(AtomicBool::new(false));
-                    let (tx_samples, mut rx_samples) = mpsc::channel(100);
-                    let demodulator = ExampleDemod::new();
+
                     let deframer = HdlcDeframer::new();
                     let packetizer = TelemetryRecordPacketizer::new();
                     let controller = Arc::new(Mutex::new(MockController));
                     // END SETUP
-
-                    // SDR
-                    let stop_clone = stop.clone();
-                    let sdr_handle = tokio::spawn(async move {
-                        while !stop_clone.load(Ordering::Relaxed) {
-                            if tx_samples.send(vec![0f64]).await.is_err() {
-                                break;
-                            }
-                            tokio::time::sleep(Duration::from_millis(200)).await;
-                        }
-                    });
 
                     // TRACKING
                     let stop_clone = stop.clone();
@@ -184,23 +172,21 @@ async fn main() {
                     });
 
                     // SAMPLES
+                    let stop_clone = stop.clone();
                     let frame_handle = tokio::spawn(async move {
-                        let mut sample_batches = Vec::new();
-
-                        while let Some(samples) = rx_samples.recv().await {
-                            sample_batches.push(samples);
-                        }
-
-                        let bits = demodulator.bits(sample_batches.into_iter());
+                        let bits = GrBitSource::new();
                         let frames = deframer.frames(bits);
-                        let packets = packetizer.packets(frames);
+                        let mut packets = packetizer.packets(frames);
 
-                        for _packet in packets {
-                            // Send packets via mqtt
+                        while !stop_clone.load(Ordering::Relaxed) {
+                            if let Some(packet) = packets.next() {
+                                // TODO: send via MQTT here.
+                                dbg!(&packet);
+                            }
                         }
                     });
 
-                    let _ = tokio::join!(tracker_handle, sdr_handle, frame_handle);
+                    let _ = tokio::join!(tracker_handle, /*sdr_handle,*/ frame_handle);
 
                     // NEXT PASS CALCULATION
                     println!("Calculating next pass...");
