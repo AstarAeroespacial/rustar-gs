@@ -96,7 +96,7 @@ async fn main() -> std::io::Result<()> {
     println!("  - GET /swagger-ui/ - Swagger UI documentation");
     println!("Server address: {}", server_address);
     println!("============= THIS NEEDS TO BE UPDATED =============");
-    
+
     let server = HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(shared_config.clone()))

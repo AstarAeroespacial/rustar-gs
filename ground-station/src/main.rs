@@ -2,6 +2,7 @@ use crate::time::TimeProvider;
 use antenna_controller::{self, AntennaController, mock::MockController};
 use demod::gr_mock::GrBitSource;
 use framing::{deframer::Deframer, hdlc_deframer::HdlcDeframer};
+use mqtt_client::{receiver::MqttReceiver, sender::MqttSender};
 use packetizer::{Packetizer, packetizer::TelemetryRecordPacketizer};
 use std::{
     sync::{
@@ -16,6 +17,7 @@ use tokio::{
     sync::mpsc,
     task::spawn_blocking,
 };
+use tokio_stream::{self, StreamExt};
 use tracking::{Tracker, get_next_pass};
 mod time;
 
@@ -38,6 +40,10 @@ async fn main() {
         "2 25544  51.6355 332.1708 0003307 260.2831  99.7785 15.50129787525648".as_bytes(),
     )
     .unwrap();
+
+    let (mqtt_send, eventloop) = MqttSender::new("127.0.0.1", 8888, Duration::from_secs(30));
+    let mut mqtt_recv = MqttReceiver::from_client(mqtt_send.client(), eventloop);
+    mqtt_recv.subscribe("sat1/control").await.unwrap();
 
     let mut next_pass = get_next_pass(
         &observer,
@@ -204,6 +210,51 @@ async fn main() {
 
                     next_pass_tx_clone.send(new_pass).await.unwrap();
                 });
+            }
+            msg = mqtt_recv.next() => {
+                if let Some(m) = msg {
+                    println!("Received command via mqtt: {}", m);
+                    match m.trim() {
+                        "GET_ELEMENTS" => mqtt_send
+                            .publish("sat1/elements", serde_json::to_string(&elements).unwrap().as_str())
+                            .await
+                            .unwrap(),
+                        "GET_OBSERVER" => mqtt_send
+                            .publish("sat1/observer", serde_json::to_string(&observer).unwrap().as_str())
+                            .await
+                            .unwrap(),
+                        _ if m.starts_with("SET_OBSERVER=") => {
+                            let maybe_observer = m.strip_prefix("SET_OBSERVER=").unwrap();
+
+                            if let Ok(o) = serde_json::from_str(maybe_observer.trim()) {
+                                observer = o;
+                                mqtt_send.publish("sat1/observer", "OK").await.unwrap();
+                            } else {
+                                mqtt_send
+                                    .publish("sat1/observer", "INVALID OBSERVER")
+                                    .await
+                                    .unwrap();
+                            }
+                        }
+                        _ if m.starts_with("SET_ELEMENTS=") => {
+                            let maybe_elements = m.strip_prefix("SET_ELEMENTS=").unwrap();
+
+                            if let Ok(e) = serde_json::from_str(maybe_elements.trim()) {
+                                elements = e;
+                                mqtt_send.publish("sat1/elements", "OK").await.unwrap();
+                            } else {
+                                mqtt_send
+                                    .publish("sat1/elements", "INVALID ELEMENTS")
+                                    .await
+                                    .unwrap();
+                            }
+                        }
+                        _ => mqtt_send
+                            .publish("sat1/responses", "INVALID COMMAND")
+                            .await
+                            .unwrap(),
+                    }
+                }
             }
         }
     }
