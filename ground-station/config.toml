@@ -1,0 +1,20 @@
+# RUSTAR Ground Station Configuration
+# This file contains configuration parameters for the ground station software
+
+[mqtt]
+# MQTT broker configuration
+host = "127.0.0.1"   # MQTT broker hostname or IP address
+port = 8888          # MQTT broker port
+timeout_seconds = 30 # Connection timeout in seconds
+
+[ground_station]
+# Ground station location coordinates
+latitude = -34.6  # Latitude in degrees (negative for South)
+longitude = -58.4 # Longitude in degrees (negative for West) 
+altitude = 2.5    # Altitude in meters above sea level
+
+# Note: You can also override these values using environment variables:
+# RUSTAR_MQTT_HOST=192.168.1.100
+# RUSTAR_MQTT_PORT=1883
+# RUSTAR_GROUND_STATION_LATITUDE=-34.123
+# etc.

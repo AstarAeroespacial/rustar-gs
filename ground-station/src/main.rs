@@ -1,3 +1,4 @@
+use crate::config::Config;
 use crate::time::TimeProvider;
 use antenna_controller::{self, AntennaController, mock::MockController};
 use demod::gr_mock::GrBitSource;
@@ -19,6 +20,7 @@ use tokio::{
 };
 use tokio_stream::{self, StreamExt};
 use tracking::{Tracker, get_next_pass};
+mod config;
 mod time;
 
 #[cfg(feature = "time_mock")]
@@ -28,12 +30,33 @@ use crate::time::SystemClock as Clock;
 
 #[tokio::main]
 async fn main() {
+    // Load configuration
+    let config = Config::load().unwrap_or_else(|err| {
+        eprintln!("Failed to load configuration: {}", err);
+        eprintln!("Please create a config.toml file in the current directory.");
+        eprintln!("See the example config.toml for the required format.");
+        std::process::exit(1);
+    });
+
+    println!("Loaded configuration:");
+    println!("  MQTT: {}:{}", config.mqtt.host, config.mqtt.port);
+    println!(
+        "  Ground Station: lat={}, lon={}, alt={}m",
+        config.ground_station.latitude,
+        config.ground_station.longitude,
+        config.ground_station.altitude
+    );
+
     #[cfg(feature = "time_mock")]
     println!("Using mock time.");
     #[cfg(not(feature = "time_mock"))]
     println!("Using real system time.");
 
-    let mut observer = tracking::Observer::new(-34.6, -58.4, 2.5);
+    let mut observer = tracking::Observer::new(
+        config.ground_station.latitude,
+        config.ground_station.longitude,
+        config.ground_station.altitude,
+    );
     let mut elements = tracking::Elements::from_tle(
         Some("ISS (ZARYA)".to_owned()),
         "1 25544U 98067A   25235.75642456  .00011222  00000+0  20339-3 0  9993".as_bytes(),
@@ -41,7 +64,8 @@ async fn main() {
     )
     .unwrap();
 
-    let (mqtt_send, eventloop) = MqttSender::new("127.0.0.1", 8888, Duration::from_secs(30));
+    let (mqtt_send, eventloop) =
+        MqttSender::new(&config.mqtt.host, config.mqtt.port, config.mqtt.timeout());
     let mut mqtt_recv = MqttReceiver::from_client(mqtt_send.client(), eventloop);
     mqtt_recv.subscribe("sat1/control").await.unwrap();
 
