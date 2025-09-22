@@ -4,11 +4,10 @@ members = [
     "antenna-controller",
     "ground-station",
     "framing",
-    "demod", "cli",
+    "demod",
+    "cli",
     "telemetry",
     "packetizer",
-    "packetizer",
-    "api",
     "mqtt-client",
 ]
 resolver = "3"
