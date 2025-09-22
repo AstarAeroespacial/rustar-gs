@@ -69,6 +69,20 @@ async fn main() {
     // Canal para comunicar el siguiente pase
     let (next_pass_tx, mut next_pass_rx) = mpsc::channel(1);
 
+    let addr = "localhost:9999";
+    let listener = TcpListener::bind(&addr).await.unwrap();
+
+    let router = Router::new()
+        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .route("/", get(root))
+        .route("/jobs", post(add_job));
+
+    tokio::spawn(async move {
+        println!("Swagger UI available at http://{addr}/docs");
+
+        axum::serve(listener, router).await.unwrap();
+    });
+
     loop {
         tokio::select! {
             maybe_conn = listener.accept() => {
