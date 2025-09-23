@@ -5,7 +5,6 @@ members = [
     "ground-station",
     "framing",
     "demod",
-    "cli",
     "telemetry",
     "packetizer",
     "mqtt-client",
