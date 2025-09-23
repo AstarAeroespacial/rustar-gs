@@ -9,5 +9,6 @@ members = [
     "telemetry",
     "packetizer",
     "mqtt-client",
+    "api",
 ]
 resolver = "3"

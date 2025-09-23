@@ -1,5 +1,10 @@
 use crate::time::TimeProvider;
 use antenna_controller::{self, AntennaController, mock::MockController};
+use api::{ApiDoc, add_job, root};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use demod::gr_mock::GrBitSource;
 use framing::{deframer::Deframer, hdlc_deframer::HdlcDeframer};
 use mqtt_client::{receiver::MqttReceiver, sender::MqttSender};
@@ -19,6 +24,8 @@ use tokio::{
 };
 use tokio_stream::{self, StreamExt};
 use tracking::{Tracker, get_next_pass};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 mod time;
 
 #[cfg(feature = "time_mock")]
@@ -68,6 +75,20 @@ async fn main() {
 
     // Canal para comunicar el siguiente pase
     let (next_pass_tx, mut next_pass_rx) = mpsc::channel(1);
+
+    let addr = "localhost:9999";
+    let listener = TcpListener::bind(&addr).await.unwrap();
+
+    let router = Router::new()
+        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .route("/", get(root))
+        .route("/jobs", post(add_job));
+
+    tokio::spawn(async move {
+        println!("Swagger UI available at http://{addr}/docs");
+
+        axum::serve(listener, router).await.unwrap();
+    });
 
     loop {
         tokio::select! {
