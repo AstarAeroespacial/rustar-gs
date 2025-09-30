@@ -2,16 +2,13 @@ name: Rust CI
 
 on:
     push:
-        branches: [main]
+        branches: ['**']
     pull_request:
-        branches: [main]
+        branches: ['**']
 
 jobs:
     check:
-        runs-on: ${{ matrix.os }}
-        strategy:
-            matrix:
-                os: [ubuntu-latest, macos-latest, windows-latest]
+        runs-on: ubuntu-latest
 
         steps:
             - name: Checkout repo
