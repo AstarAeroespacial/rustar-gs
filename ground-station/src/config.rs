@@ -26,7 +26,7 @@ impl Config {
     pub fn load() -> Result<Self, config::ConfigError> {
         let settings = config::Config::builder()
             // Load from config.toml file (required)
-            .add_source(config::File::with_name("config"))
+            .add_source(config::File::with_name("ground-station/config"))
             // Add environment variables with RUSTAR_ prefix
             .add_source(config::Environment::with_prefix("RUSTAR"))
             .build()?;
