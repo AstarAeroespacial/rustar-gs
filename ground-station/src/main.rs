@@ -53,6 +53,7 @@ async fn main() {
         config.ground_station.longitude,
         config.ground_station.altitude
     );
+    println!("  API: {}:{}", config.api.host, config.api.port);
 
     #[cfg(feature = "time_mock")]
     println!("Using mock time.");
@@ -98,8 +99,8 @@ async fn main() {
     // Canal para comunicar el siguiente pase
     let (next_pass_tx, mut next_pass_rx) = mpsc::channel(1);
 
-    let addr = "localhost:9999";
-    let listener = TcpListener::bind(&addr).await.unwrap();
+    let api_addr = format!("{}:{}", config.api.host, config.api.port);
+    let listener = TcpListener::bind(&api_addr).await.unwrap();
 
     let router = Router::new()
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
@@ -107,7 +108,7 @@ async fn main() {
         .route("/jobs", post(add_job));
 
     tokio::spawn(async move {
-        println!("Swagger UI available at http://{addr}/docs");
+        println!("Swagger UI available at http://{}/docs", api_addr);
 
         axum::serve(listener, router).await.unwrap();
     });

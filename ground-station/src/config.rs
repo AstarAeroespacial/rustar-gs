@@ -5,6 +5,7 @@ use std::time::Duration;
 pub struct Config {
     pub mqtt: MqttConfig,
     pub ground_station: GroundStationConfig,
+    pub api: ApiConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,6 +20,12 @@ pub struct GroundStationConfig {
     pub latitude: f64,
     pub longitude: f64,
     pub altitude: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiConfig {
+    pub host: String,
+    pub port: u16,
 }
 
 impl Config {
