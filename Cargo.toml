@@ -5,9 +5,9 @@ members = [
     "ground-station",
     "framing",
     "demod",
-    "cli",
     "telemetry",
     "packetizer",
     "mqtt-client",
+    "api",
 ]
 resolver = "3"

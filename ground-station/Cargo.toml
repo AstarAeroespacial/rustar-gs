@@ -19,3 +19,7 @@ serde_json = "1.0.143"
 config = "0.14.1"
 mqtt-client = { version = "0.1.0", path = "../mqtt-client" }
 tokio-stream = "0.1.17"
+axum = "0.8.4"
+utoipa = "5.4.0"
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
+api = { path = "../api" }
