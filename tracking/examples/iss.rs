@@ -1,5 +1,7 @@
+use std::thread::sleep;
 use std::time::Duration;
 
+use antenna_controller::{AntennaController, serial::SerialAntennaController};
 use sgp4::chrono;
 use tracking::{Observer, Tracker};
 
@@ -15,14 +17,25 @@ fn main() {
 
     let tracker = Tracker::new(&buenos_aires, elements).unwrap();
 
-    let now = chrono::Utc::now();
+    let sender_port = "/dev/ttyUSB0".to_string();
+    let baud_rate = 9600;
 
-    let observation = tracker.track(now).unwrap();
+    let mut controller = SerialAntennaController::new(&sender_port, baud_rate)
+        .expect("Failed to open serial port (sender)");
 
-    if let Some(next_pass) = tracker.next_pass(now, Duration::from_secs_f64(3600.0 * 6.0)) {
-        let pass_duration_min = (next_pass.end - next_pass.start) / 60.0;
-        println!("Pass duration: {:.1} minutes", pass_duration_min);
+    loop {
+        let now = chrono::Utc::now();
+        if let Ok(observation) = tracker.track(now) {
+            let az = observation.azimuth;
+            let el = observation.elevation;
+
+            if let Err(e) = controller.send(az, el, "ISS", 145800) {
+                eprintln!("Error sending data: {:?}", e);
+            }
+        } else {
+            eprintln!("No observation available");
+        }
+
+        sleep(Duration::from_secs(1));
     }
-
-    println!("{:?}", observation);
 }
