@@ -14,7 +14,7 @@ async fn main() {
     scheduler.set_job(ScheduledJob::from_job(job)).unwrap();
 
     println!("Waiting for job...");
-    if let Some(job) = scheduler.next_job().await {
-        println!("Job fired at {:?}", job.timestamp);
-    }
+
+    let job = scheduler.next_job().await;
+    println!("Job fired at {:?}", job.timestamp);
 }

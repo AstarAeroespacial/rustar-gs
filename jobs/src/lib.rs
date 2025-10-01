@@ -56,7 +56,7 @@ impl ScheduledJob {
 ///     scheduler.set_job(ScheduledJob::from_job(job)).unwrap();
 ///
 ///     // Wait for the job to fire
-///     let job = scheduler.next_job().await.unwrap();
+///     let job = scheduler.next_job().await;
 ///     assert!(job.timestamp <= Utc::now());
 /// }
 /// ```
@@ -96,11 +96,11 @@ impl JobScheduler {
     ///
     /// If a job is already scheduled, waits until its instant and returns it.
     /// If no job is scheduled, this call will suspend until one is set.
-    pub async fn next_job(&mut self) -> Option<Job> {
+    pub async fn next_job(&mut self) -> Job {
         loop {
             if let Some(job) = self.current.take() {
                 tokio::time::sleep_until(job.instant).await;
-                return Some(job.job);
+                return job.job;
             }
 
             // wait until a job is scheduled

@@ -38,10 +38,8 @@ async fn main() {
             }
 
             // execute jobs
-            maybe_job = scheduler.next_job() => {
-                if let Some(job) = maybe_job {
-                    println!("Job fired at {:?}", job.timestamp);
-                }
+            job = scheduler.next_job() => {
+                println!("Job fired at {:?}", job.timestamp);
             }
         }
     }
