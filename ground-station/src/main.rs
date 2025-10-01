@@ -1,5 +1,11 @@
+use crate::config::Config;
 use crate::time::TimeProvider;
 use antenna_controller::{self, AntennaController, mock::MockController};
+use api::{ApiDoc, add_job, root};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use demod::gr_mock::GrBitSource;
 use framing::{deframer::Deframer, hdlc_deframer::HdlcDeframer};
 use mqtt_client::{receiver::MqttReceiver, sender::MqttSender};
@@ -12,28 +18,53 @@ use std::{
     time::Duration,
 };
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
     sync::mpsc,
     task::spawn_blocking,
 };
 use tokio_stream::{self, StreamExt};
 use tracking::{Tracker, get_next_pass};
-mod time;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 #[cfg(feature = "time_mock")]
 use crate::time::MockClock as Clock;
 #[cfg(not(feature = "time_mock"))]
 use crate::time::SystemClock as Clock;
 
+mod config;
+mod time;
+
 #[tokio::main]
 async fn main() {
+    // Load configuration
+    let config = Config::load().unwrap_or_else(|err| {
+        eprintln!("Failed to load configuration: {}", err);
+        eprintln!("Please create a config.toml file in the current directory.");
+        eprintln!("See the example config.toml for the required format.");
+        std::process::exit(1);
+    });
+
+    println!("Loaded configuration:");
+    println!("  MQTT: {}:{}", config.mqtt.host, config.mqtt.port);
+    println!(
+        "  Ground Station: lat={}, lon={}, alt={}m",
+        config.ground_station.latitude,
+        config.ground_station.longitude,
+        config.ground_station.altitude
+    );
+    println!("  API: {}:{}", config.api.host, config.api.port);
+
     #[cfg(feature = "time_mock")]
     println!("Using mock time.");
     #[cfg(not(feature = "time_mock"))]
     println!("Using real system time.");
 
-    let mut observer = tracking::Observer::new(-34.6, -58.4, 2.5);
+    let mut observer = tracking::Observer::new(
+        config.ground_station.latitude,
+        config.ground_station.longitude,
+        config.ground_station.altitude,
+    );
     let mut elements = tracking::Elements::from_tle(
         Some("ISS (ZARYA)".to_owned()),
         "1 25544U 98067A   25235.75642456  .00011222  00000+0  20339-3 0  9993".as_bytes(),
@@ -41,7 +72,8 @@ async fn main() {
     )
     .unwrap();
 
-    let (mqtt_send, eventloop) = MqttSender::new("127.0.0.1", 8888, Duration::from_secs(30));
+    let (mqtt_send, eventloop) =
+        MqttSender::new(&config.mqtt.host, config.mqtt.port, config.mqtt.timeout());
     let mut mqtt_recv = MqttReceiver::from_client(mqtt_send.client(), eventloop);
     mqtt_recv.subscribe("sat1/control").await.unwrap();
 
@@ -61,67 +93,28 @@ async fn main() {
     let sleep = tokio::time::sleep(timer);
     tokio::pin!(sleep);
 
-    let listener = TcpListener::bind("localhost:9999").await.unwrap();
-
     // Estado para controlar si ya hay un tracking en progreso
     let mut tracking_in_progress = false;
 
     // Canal para comunicar el siguiente pase
     let (next_pass_tx, mut next_pass_rx) = mpsc::channel(1);
 
+    let api_addr = format!("{}:{}", config.api.host, config.api.port);
+    let listener = TcpListener::bind(&api_addr).await.unwrap();
+
+    let router = Router::new()
+        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .route("/", get(root))
+        .route("/jobs", post(add_job));
+
+    tokio::spawn(async move {
+        println!("Swagger UI available at http://{}/docs", api_addr);
+
+        axum::serve(listener, router).await.unwrap();
+    });
+
     loop {
         tokio::select! {
-            maybe_conn = listener.accept() => {
-                if let Ok((mut socket, addr)) = maybe_conn {
-                    let mut buffer = [0; 2048];
-                    let n = socket.read(&mut buffer).await.unwrap();
-
-                    let request = String::from_utf8_lossy(&buffer[..n]);
-                    println!("Received from {}: {:?}", addr, &request);
-
-                    match request.trim() {
-                        "GET_ELEMENTS" => socket
-                            .write_all(serde_json::to_string(&elements).unwrap().as_bytes())
-                            .await
-                            .unwrap(),
-                        "GET_OBSERVER" => socket
-                            .write_all(serde_json::to_string(&observer).unwrap().as_bytes())
-                            .await
-                            .unwrap(),
-                        "PING" => socket.write_all("PONG".as_bytes()).await.unwrap(),
-                        _ if request.starts_with("SET_OBSERVER=") => {
-                            let maybe_observer = request.strip_prefix("SET_OBSERVER=").unwrap();
-
-                            if let Ok(o) = serde_json::from_str(maybe_observer.trim()) {
-                                observer = o;
-                                socket.write_all("OK".as_bytes()).await.unwrap();
-                            } else {
-                                socket
-                                    .write_all("INVALID OBSERVER".as_bytes())
-                                    .await
-                                    .unwrap();
-                            }
-                        }
-                        _ if request.starts_with("SET_ELEMENTS=") => {
-                            let maybe_elements = request.strip_prefix("SET_ELEMENTS=").unwrap();
-
-                            if let Ok(e) = serde_json::from_str(maybe_elements.trim()) {
-                                elements = e;
-                                socket.write_all("OK".as_bytes()).await.unwrap();
-                            } else {
-                                socket
-                                    .write_all("INVALID ELEMENTS".as_bytes())
-                                    .await
-                                    .unwrap();
-                            }
-                        }
-                        _ => socket
-                            .write_all("INVALID COMMAND".as_bytes())
-                            .await
-                            .unwrap(),
-                    }
-                }
-            }
             // Cuando llega un nuevo pase calculado, actualizar timer
             Some(new_pass) = next_pass_rx.recv() => {
                 next_pass = new_pass;
