@@ -17,11 +17,7 @@ use std::{
     },
     time::Duration,
 };
-use tokio::{
-    net::TcpListener,
-    sync::mpsc,
-    task::spawn_blocking,
-};
+use tokio::{net::TcpListener, sync::mpsc, task::spawn_blocking};
 use tokio_stream::{self, StreamExt};
 use tracking::{Tracker, get_next_pass};
 use utoipa::OpenApi;
