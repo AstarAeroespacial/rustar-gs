@@ -7,7 +7,7 @@ edition = "2024"
 time_mock = []
 
 [dependencies]
-tracking = { path = "../tracking" }
+tracking = { git = "https://github.com/AstarAeroespacial/rustar-tracking" }
 antenna-controller = { path = "../antenna-controller" }
 demod = { path = "../demod" }
 framing = { path = "../framing" }

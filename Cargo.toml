@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "tracking",
     "antenna-controller",
     "ground-station",
     "framing",
