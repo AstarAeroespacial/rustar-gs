@@ -4,6 +4,12 @@ pub struct GrBitSource {
     sub_sock: zmq::Socket,
 }
 
+impl Default for GrBitSource {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GrBitSource {
     pub fn new() -> Self {
         let ctx = zmq::Context::new();
