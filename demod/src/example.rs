@@ -27,12 +27,15 @@ where
 {
     type Item = Vec<bool>;
 
+    // Returns a bit every 100 sample reads.
     fn next(&mut self) -> Option<Self::Item> {
-        if self.inner.next().is_some() {
-            Some(vec![true])
-        } else {
-            None
+        for _ in 0..100 {
+            if self.inner.next().is_none() {
+                return None;
+            }
         }
+
+        return Some(vec![true]);
     }
 }
 
