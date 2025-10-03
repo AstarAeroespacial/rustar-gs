@@ -8,5 +8,7 @@ members = [
     "packetizer",
     "mqtt-client",
     "api",
+    "jobs",
+    "sdr",
 ]
 resolver = "3"
