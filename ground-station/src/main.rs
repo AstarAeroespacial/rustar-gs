@@ -6,10 +6,11 @@ use axum::{
     Router,
     routing::{get, post},
 };
-use demod::gr_mock::GrBitSource;
-use framing::{deframer::Deframer, hdlc_deframer::HdlcDeframer};
+use demod::{Demodulator, example::ExampleDemod};
+use framing::{deframer::Deframer, mock_deframer::MockDeframer};
 use mqtt_client::{receiver::MqttReceiver, sender::MqttSender};
 use packetizer::{Packetizer, packetizer::TelemetryRecordPacketizer};
+use sdr::{MockSdr, SdrCommand, sdr_task};
 use std::{
     sync::{
         Arc, Mutex,
@@ -139,37 +140,48 @@ async fn main() {
                     let tracker = Tracker::new(&observer_clone, elements_clone.clone()).unwrap();
                     let stop = Arc::new(AtomicBool::new(false));
 
-                    let deframer = HdlcDeframer::new();
+                    let deframer = MockDeframer::new();
+                    let demodulatro = ExampleDemod::new();
                     let packetizer = TelemetryRecordPacketizer::new();
                     let controller = Arc::new(Mutex::new(MockController));
+
+                    let sdr = MockSdr::new(48_000.0, 1200.0, 512);
+                    let (cmd_tx, cmd_rx) = mpsc::channel(1); // tokio channel
+                    let (samp_tx, samp_rx) = std::sync::mpsc::channel(); // standard channel
                     // END SETUP
+
+                    let sdr_handle = tokio::spawn(sdr_task(sdr, cmd_rx, samp_tx));
 
                     // TRACKING
                     let stop_clone = stop.clone();
                     let controller_clone = controller.clone();
                     let tracker_handle = tokio::spawn(async move {
                         for i in 0..5 {
-                            tokio::time::sleep(Duration::from_secs(1)).await;
                             let obs = tracker.track(Clock::now()).unwrap();
 
                             println!("Tracking step {}: Az={:.1}°, El={:.1}°",
-                                     i, obs.azimuth.to_degrees(), obs.elevation.to_degrees());
+                            i, obs.azimuth.to_degrees(), obs.elevation.to_degrees());
 
                             controller_clone
-                                .lock()
-                                .unwrap()
+                            .lock()
+                            .unwrap()
                                 .send(obs.azimuth.to_degrees(), obs.elevation.to_degrees(), "ISS", 145800)
                                 .unwrap();
+
+                            // TODO: consider using crate engineering units, might be elegant
+                            cmd_tx.send(SdrCommand::SetRxFrequency(435_000_000.0)).await.unwrap();
+
+                            tokio::time::sleep(Duration::from_secs(1)).await;
                         }
 
                         println!("\nPass ended, stopping SDR and tracker.\n");
                         stop_clone.store(true, Ordering::Relaxed);
                     });
 
-                    // SAMPLES
+                    // BITS/FRAMES - Move to blocking task to handle std::sync::mpsc
                     let stop_clone = stop.clone();
-                    let frame_handle = tokio::spawn(async move {
-                        let bits = GrBitSource::new();
+                    let frame_handle = tokio::task::spawn_blocking(move || {
+                        let bits = demodulator.bits(samp_rx.into_iter());
                         let frames = deframer.frames(bits);
                         let mut packets = packetizer.packets(frames);
 
@@ -181,7 +193,7 @@ async fn main() {
                         }
                     });
 
-                    let _ = tokio::join!(tracker_handle, /*sdr_handle,*/ frame_handle);
+                    let _ = tokio::join!(tracker_handle, sdr_handle, frame_handle);
 
                     // NEXT PASS CALCULATION
                     println!("Calculating next pass...");
