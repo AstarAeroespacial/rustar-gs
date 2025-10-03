@@ -5,9 +5,10 @@ use tokio::{
     time::{Duration, Instant},
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Job {
     pub timestamp: DateTime<Utc>,
+    pub elements: tracking::Elements,
 }
 
 /// A job scheduled to run at a specific `Instant`.
@@ -32,6 +33,7 @@ impl ScheduledJob {
             .unwrap_or(Duration::from_secs(0)); // if it's in the past, clamp to now
 
         let instant = Instant::now() + duration;
+
         ScheduledJob { instant, job }
     }
 }
