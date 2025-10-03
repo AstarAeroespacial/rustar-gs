@@ -141,7 +141,7 @@ async fn main() {
                     let stop = Arc::new(AtomicBool::new(false));
 
                     let deframer = MockDeframer::new();
-                    let demodulatro = ExampleDemod::new();
+                    let demodulator = ExampleDemod::new();
                     let packetizer = TelemetryRecordPacketizer::new();
                     let controller = Arc::new(Mutex::new(MockController));
 
