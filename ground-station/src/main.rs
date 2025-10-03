@@ -20,7 +20,7 @@ use std::{
     },
     time::Duration,
 };
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, sync::mpsc};
 use tracking::Tracker;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -45,20 +45,17 @@ async fn main() {
     );
     println!("  API: {}:{}", config.api.host, config.api.port);
 
-    #[cfg(feature = "time_mock")]
-    println!("Using mock time.");
-    #[cfg(not(feature = "time_mock"))]
-    println!("Using real system time.");
-
     let observer = tracking::Observer::new(
         config.ground_station.latitude,
         config.ground_station.longitude,
         config.ground_station.altitude,
     );
 
-    let (mqtt_send, eventloop) =
+    let (_mqtt_send, _eventloop) =
         MqttSender::new(&config.mqtt.host, config.mqtt.port, config.mqtt.timeout());
 
+    // Create channel for sending jobs from API to scheduler
+    let (job_tx, mut job_rx) = mpsc::unbounded_channel::<jobs::Job>();
     let mut scheduler = JobScheduler::new();
 
     let api_addr = format!("{}:{}", config.api.host, config.api.port);
@@ -67,7 +64,8 @@ async fn main() {
     let router = Router::new()
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/", get(root))
-        .route("/jobs", post(add_job));
+        .route("/jobs", post(add_job))
+        .with_state(job_tx);
 
     tokio::spawn(async move {
         println!("Swagger UI available at http://{}/docs", api_addr);
@@ -77,6 +75,15 @@ async fn main() {
 
     loop {
         tokio::select! {
+            // Receive jobs from API and add them to scheduler
+            Some(job) = job_rx.recv() => {
+                println!("Received job for {:?}", job.timestamp);
+
+                if let Err(e) = scheduler.set_job(jobs::ScheduledJob::from_job(job)) {
+                    eprintln!("Failed to schedule job: {:?}", e);
+                }
+            }
+            // Execute scheduled jobs
             job = scheduler.next_job() => {
                 println!("\nSTARTING PASS\n");
 
