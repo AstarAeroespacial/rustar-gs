@@ -21,7 +21,7 @@ pub struct BitDrain<'a> {
     drained: usize,
 }
 
-impl<'a> Iterator for BitDrain<'a> {
+impl Iterator for BitDrain<'_> {
     type Item = bool;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -45,7 +45,7 @@ impl<'a> Iterator for BitDrain<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for BitDrain<'a> {}
+impl ExactSizeIterator for BitDrain<'_> {}
 
 impl BitVecDeque {
     pub fn new() -> Self {

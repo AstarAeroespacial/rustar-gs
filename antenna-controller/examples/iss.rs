@@ -1,8 +1,7 @@
-use std::thread::sleep;
-use std::time::Duration;
-
 use antenna_controller::{AntennaController, serial::SerialAntennaController};
 use sgp4::chrono;
+use std::thread::sleep;
+use std::time::Duration;
 use tracking::{Observer, Tracker};
 
 fn main() {

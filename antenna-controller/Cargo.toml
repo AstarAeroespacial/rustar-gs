@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 serialport = "4.7.2"
+sgp4 = "2.3.0"
+tracking = { git = "https://github.com/AstarAeroespacial/rustar-tracking" }
