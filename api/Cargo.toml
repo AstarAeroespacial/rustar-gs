@@ -10,3 +10,6 @@ serde = "1.0.226"
 serde_json = "1.0.145"
 utoipa = "5.4.0"
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
+tokio = { version = "1.47.1", features = ["sync"] }
+jobs = { path = "../jobs" }
+tracking = { git = "https://github.com/AstarAeroespacial/rustar-tracking.git" }
