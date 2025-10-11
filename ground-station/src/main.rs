@@ -152,22 +152,6 @@ async fn main() {
                     });
 
                     let _ = tokio::join!(tracker_handle, sdr_handle, frame_handle);
-
-                    // NEXT PASS CALCULATION
-                    println!("Calculating next pass...");
-                    let observer_for_calc = observer_clone.clone();
-                    let elements_for_calc = elements_clone.clone();
-
-                    let new_pass = spawn_blocking(move || {
-                        get_next_pass(
-                            &observer_for_calc,
-                            &elements_for_calc,
-                            Clock::now(),
-                            Duration::from_secs_f64(3600.0 * 6.0)
-                        ).unwrap()
-                    }).await.unwrap();
-
-                    next_pass_tx_clone.send(new_pass).await.unwrap();
                 });
             }
             msg = mqtt_recv.next() => {
