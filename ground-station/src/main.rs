@@ -154,51 +154,6 @@ async fn main() {
                     let _ = tokio::join!(tracker_handle, sdr_handle, frame_handle);
                 });
             }
-            msg = mqtt_recv.next() => {
-                if let Some(m) = msg {
-                    println!("Received command via mqtt: {}", m);
-                    match m.trim() {
-                        "GET_ELEMENTS" => mqtt_send
-                            .publish("sat1/elements", serde_json::to_string(&elements).unwrap().as_str())
-                            .await
-                            .unwrap(),
-                        "GET_OBSERVER" => mqtt_send
-                            .publish("sat1/observer", serde_json::to_string(&observer).unwrap().as_str())
-                            .await
-                            .unwrap(),
-                        _ if m.starts_with("SET_OBSERVER=") => {
-                            let maybe_observer = m.strip_prefix("SET_OBSERVER=").unwrap();
-
-                            if let Ok(o) = serde_json::from_str(maybe_observer.trim()) {
-                                observer = o;
-                                mqtt_send.publish("sat1/observer", "OK").await.unwrap();
-                            } else {
-                                mqtt_send
-                                    .publish("sat1/observer", "INVALID OBSERVER")
-                                    .await
-                                    .unwrap();
-                            }
-                        }
-                        _ if m.starts_with("SET_ELEMENTS=") => {
-                            let maybe_elements = m.strip_prefix("SET_ELEMENTS=").unwrap();
-
-                            if let Ok(e) = serde_json::from_str(maybe_elements.trim()) {
-                                elements = e;
-                                mqtt_send.publish("sat1/elements", "OK").await.unwrap();
-                            } else {
-                                mqtt_send
-                                    .publish("sat1/elements", "INVALID ELEMENTS")
-                                    .await
-                                    .unwrap();
-                            }
-                        }
-                        _ => mqtt_send
-                            .publish("sat1/responses", "INVALID COMMAND")
-                            .await
-                            .unwrap(),
-                    }
-                }
-            }
         }
     }
 }
