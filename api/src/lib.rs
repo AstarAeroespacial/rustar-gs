@@ -72,12 +72,12 @@ pub struct TleData {
 ///   "rx_frequency": 145800000,
 ///   "tx_frequency": 437500000
 /// }
+/// ```
 ///
 /// ## Notes:
-/// - `start` and `end` must be **UTC timestamps** in ISO-8601 format.  
+/// - `start` and `end` must be **UTC timestamps** in ISO-8601 format. (Use https://www.utctime.net/ for getting the current UTC timestamp.)
 /// - `tle1` and `tle2` **must be exactly 69 characters long** with valid checksums.
 /// - `rx_frequency` and `tx_frequency` are expressed in **Hertz**.
-/// ```
 #[derive(Deserialize, ToSchema, Debug)]
 pub struct JobRequestDTO {
     /// UTC timestamp for when the tracking should **begin**.
@@ -148,10 +148,43 @@ pub struct JobRequestDTO {
     responses(
     )
 )]
-pub async fn add_job(Json(payload): Json<JobRequestDTO>) -> impl IntoResponse {
+pub async fn add_job(
+    axum::extract::State(job_tx): axum::extract::State<
+        tokio::sync::mpsc::UnboundedSender<jobs::Job>,
+    >,
+    Json(payload): Json<JobRequestDTO>,
+) -> impl IntoResponse {
     println!("[API] Received job request: {:#?}", &payload);
 
-    Json(json!({"status": "ok"}))
+    // Convert JobRequestDTO to Job
+    let elements = match tracking::Elements::from_tle(
+        Some(payload.tle.tle0),
+        payload.tle.tle1.as_bytes(),
+        payload.tle.tle2.as_bytes(),
+    ) {
+        Ok(elements) => elements,
+        Err(e) => {
+            eprintln!("Failed to parse TLE: {:?}", e);
+
+            return Json(json!({"status": "error", "message": "Invalid TLE data"}));
+        }
+    };
+
+    let job = jobs::Job {
+        timestamp: payload.start,
+        elements,
+    };
+
+    // TODO: somehow manage the fact that the job may have been sent successfully, but not scheduled
+
+    // Send job through channel
+    if let Err(_) = job_tx.send(job) {
+        eprintln!("Failed to send job to scheduler");
+
+        return Json(json!({"status": "error", "message": "Failed to add job to scheduler"}));
+    }
+
+    Json(json!({"status": "ok", "message": "Job added to scheduler successfully"}))
 }
 
 #[utoipa::path(get, path = "/", tag = "Ground Station", responses())]

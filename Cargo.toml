@@ -9,5 +9,6 @@ members = [
     "mqtt-client",
     "api",
     "sdr",
+    "jobs",
 ]
 resolver = "3"
