@@ -26,6 +26,22 @@ use tracking::Tracker;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+fn create_sdr(sdr_config: &config::SdrConfig) -> Box<dyn sdr::Sdr + Send> {
+    // TODO: sdr types as enum in config, to make it safer?
+    match sdr_config.r#type.as_str() {
+        "zmq_mock" => {
+            let endpoint = sdr_config.zmq_endpoint.as_ref().unwrap();
+            println!("[SDR] Creating ZMQ Mock SDR: {}", endpoint);
+            Box::new(sdr::ZmqMockSdr::new(endpoint.clone()))
+        }
+        "mock" => {
+            println!("[SDR] Creating Mock SDR");
+            Box::new(MockSdr::new(48_000.0, 1200.0, 512))
+        }
+        _ => panic!("Unknown SDR type: {}", sdr_config.r#type),
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // Load configuration
@@ -36,6 +52,11 @@ async fn main() {
         std::process::exit(1);
     });
 
+    if let Err(e) = config.sdr.validate() {
+        eprintln!("SDR configuration error: {}", e);
+        std::process::exit(1);
+    }
+
     println!("Loaded configuration:");
     println!("  MQTT: {}:{}", config.mqtt.host, config.mqtt.port);
     println!(
@@ -45,6 +66,15 @@ async fn main() {
         config.ground_station.altitude
     );
     println!("  API: {}:{}", config.api.host, config.api.port);
+    println!(
+        "  SDR: {}, {}",
+        config.sdr.r#type,
+        if let Some(ref s) = config.sdr.zmq_endpoint {
+            s
+        } else {
+            ""
+        }
+    );
 
     let observer = tracking::Observer::new(
         config.ground_station.latitude,
@@ -89,6 +119,7 @@ async fn main() {
                 println!("\nSTARTING PASS\n");
 
                 let observer_clone = observer.clone();
+                let sdr = create_sdr(&config.sdr);
 
                 // Lanzar tracking en background
                 tokio::spawn(async move {
@@ -102,7 +133,6 @@ async fn main() {
                     let packetizer = TelemetryRecordPacketizer::new();
                     let controller = Arc::new(Mutex::new(MockController));
 
-                    let sdr = MockSdr::new(48_000.0, 1200.0, 512);
                     let (cmd_tx, cmd_rx) = mpsc::channel(1); // tokio channel
                     let (samp_tx, samp_rx) = std::sync::mpsc::channel(); // standard channel
                     // END SETUP
@@ -113,6 +143,7 @@ async fn main() {
                     let stop_clone = stop.clone();
                     let controller_clone = controller.clone();
                     let tracker_handle = tokio::spawn(async move {
+                        // TODO: until los in job
                         for i in 0..5 {
                             tokio::time::sleep(Duration::from_secs(1)).await;
                             let obs = tracker.track(Utc::now()).unwrap();
