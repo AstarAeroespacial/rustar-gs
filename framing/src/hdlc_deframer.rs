@@ -54,15 +54,24 @@ where
                             self.idx = self.idx.saturating_add(8);
                         }
                         ParserState::SearchingEndSync => {
-                            // Drain the whole frame between syncs (from 0 to idx+8)
+                            // Drain the frame including both flags (from 0 to idx+8)
                             let frame_bits = self.buffer.drain_range(0, self.idx + 8);
 
-                            self.idx = 0;
-                            self.state = ParserState::SearchingStartSync;
+                            // Flag sharing: keep the closing flag as the opening flag of the next frame
+                            // Push the flag back to the front of the buffer
+                            for bit in FLAG_ARRAY.iter().rev() {
+                                self.buffer.push_front(*bit);
+                            }
+                            // Reset index to start scanning after the shared flag
+                            self.idx = 8;
 
                             if let Ok(frame) = Frame::try_from(frame_bits) {
                                 return Some(frame);
                             }
+
+                            // If frame parsing failed, reset to search for a new start
+                            self.idx = 0;
+                            self.state = ParserState::SearchingStartSync;
                         }
                     }
                 } else {
@@ -431,5 +440,97 @@ mod tests {
 
         assert_eq!(frame1, frames[0]);
         assert_eq!(frame2, frames[1]);
+    }
+
+    #[test]
+    fn test_two_frames_with_shared_flag() {
+        let deframer = HdlcDeframer::new();
+        let frame1 = Frame::new(Some(vec![0xAA]));
+        let frame2 = Frame::new(Some(vec![0xBB]));
+
+        let frame1_bits = frame1.to_bits();
+        let frame2_bits = frame2.to_bits();
+
+        let mut combined = frame1_bits.clone();
+        combined.extend(&frame2_bits[8..]); // skip opening flag of frame2
+
+        let input = vec![combined];
+        let frames: Vec<Frame> = deframer.frames(input.into_iter()).collect();
+
+        assert_eq!(frames.len(), 2);
+        assert_eq!(frames[0].to_bits(), frame1_bits);
+        assert_eq!(frames[1].to_bits(), frame2_bits);
+    }
+
+    #[test]
+    fn test_three_frames_with_shared_flags() {
+        let deframer = HdlcDeframer::new();
+        let frame1 = Frame::new(Some(vec![0x01]));
+        let frame2 = Frame::new(Some(vec![0x02]));
+        let frame3 = Frame::new(Some(vec![0x03]));
+
+        let frame1_bits = frame1.to_bits();
+        let frame2_bits = frame2.to_bits();
+        let frame3_bits = frame3.to_bits();
+
+        let mut combined = frame1_bits.clone();
+        combined.extend(&frame2_bits[8..]); // skip opening flag of frame2
+        combined.extend(&frame3_bits[8..]); // skip opening flag of frame3
+
+        let input = vec![combined];
+        let frames: Vec<Frame> = deframer.frames(input.into_iter()).collect();
+
+        assert_eq!(frames.len(), 3);
+        assert_eq!(frames[0].to_bits(), frame1_bits);
+        assert_eq!(frames[1].to_bits(), frame2_bits);
+        assert_eq!(frames[2].to_bits(), frame3_bits);
+    }
+
+    #[test]
+    fn test_shared_flag_with_garbage_after() {
+        let deframer = HdlcDeframer::new();
+        let frame1 = Frame::new(Some(vec![0xAA]));
+        let frame2 = Frame::new(Some(vec![0xBB]));
+
+        let frame1_bits = frame1.to_bits();
+        let frame2_bits = frame2.to_bits();
+
+        let mut combined = frame1_bits.clone();
+        combined.extend(&frame2_bits[8..]);
+
+        let input = vec![
+            combined,
+            vec![true, false, true, false], // garbage
+        ];
+
+        let frames: Vec<Frame> = deframer.frames(input.into_iter()).collect();
+
+        assert_eq!(frames.len(), 2);
+        assert_eq!(frames[0].to_bits(), frame1_bits);
+        assert_eq!(frames[1].to_bits(), frame2_bits);
+    }
+
+    #[test]
+    fn test_shared_flag_chunked_delivery() {
+        let deframer = HdlcDeframer::new();
+        let frame1 = Frame::new(Some(vec![0x11]));
+        let frame2 = Frame::new(Some(vec![0x22]));
+
+        let frame1_bits = frame1.to_bits();
+        let frame2_bits = frame2.to_bits();
+
+        let mut combined = frame1_bits.clone();
+        combined.extend(&frame2_bits[8..]);
+
+        // Split the combined stream at the shared flag boundary
+        let split_point = frame1_bits.len() - 4; // Split in the middle of the shared flag
+        let (part1, part2) = combined.split_at(split_point);
+
+        let input = vec![part1.to_vec(), part2.to_vec()];
+        let frames: Vec<Frame> = deframer.frames(input.into_iter()).collect();
+
+        assert_eq!(frames.len(), 2);
+        assert_eq!(frames[0].to_bits(), frame1_bits);
+        assert_eq!(frames[1].to_bits(), frame2_bits);
     }
 }
