@@ -226,7 +226,7 @@ async fn main() {
 
                             client_clone
                                 .publish(
-                                    &format!("{}/telemetry", satellite_name),
+                                    &format!("satellite/{}/telemetry", satellite_name),
                                     QoS::AtLeastOnce,
                                     false,
                                     serde_json::to_string(&msg).unwrap().as_bytes(),
