@@ -23,6 +23,7 @@ async fn main() {
             let job1 = Job {
                 timestamp: Utc::now() + ChronoDuration::seconds(2),
                 elements: elements.clone(),
+                satellite_name: "ISS (ZARYA)".to_string(),
             };
             tx.send(job1).unwrap();
 
@@ -33,6 +34,7 @@ async fn main() {
             let job2 = Job {
                 timestamp: Utc::now() + ChronoDuration::seconds(1),
                 elements: elements.clone(),
+                satellite_name: "ISS (ZARYA)".to_string(),
             };
             tx.send(job2).unwrap();
         }
