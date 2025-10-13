@@ -28,18 +28,19 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 fn create_sdr(sdr_config: &config::SdrConfig) -> Box<dyn sdr::Sdr + Send> {
-    // TODO: sdr types as enum in config, to make it safer?
-    match sdr_config.r#type.as_str() {
-        "zmq_mock" => {
-            let endpoint = sdr_config.zmq_endpoint.as_ref().unwrap();
-            println!("[SDR] Creating ZMQ Mock SDR: {}", endpoint);
-            Box::new(sdr::ZmqMockSdr::new(endpoint.clone()))
-        }
-        "mock" => {
+    match sdr_config {
+        config::SdrConfig::Mock => {
             println!("[SDR] Creating Mock SDR");
             Box::new(MockSdr::new(48_000.0, 1200.0, 512))
         }
-        _ => panic!("Unknown SDR type: {}", sdr_config.r#type),
+        config::SdrConfig::ZmqMock { zmq_endpoint } => {
+            println!("[SDR] Creating ZMQ Mock SDR: {}", zmq_endpoint);
+            Box::new(sdr::ZmqMockSdr::new(zmq_endpoint.clone()))
+        }
+        config::SdrConfig::Soapy { soapy_string } => {
+            println!("[SDR] Creating SoapySDR: {}", soapy_string);
+            panic!("SoapySDR not yet implemented");
+        }
     }
 }
 
@@ -54,47 +55,31 @@ async fn main() {
     });
     let config = Arc::new(config);
 
-    if let Err(e) = config.sdr.validate() {
-        eprintln!("SDR configuration error: {}", e);
-        std::process::exit(1);
-    }
-
-    if let Err(e) = config.mqtt.validate() {
-        eprintln!("MQTT configuration error: {}", e);
-        std::process::exit(1);
-    }
-
     println!("Loaded configuration:");
+    let auth_info = config.mqtt.auth.as_ref()
+        .map(|a| format!("username: {}, password: {}", a.username, a.password))
+        .unwrap_or_else(|| "no auth".to_string());
     println!(
-        "  MQTT: {}:{} ({}), username: {}, password: {}",
+        "  MQTT: {}:{} ({:?}), {}",
         &config.mqtt.host,
         &config.mqtt.port,
         &config.mqtt.transport,
-        &config.mqtt.username,
-        &config.mqtt.password
+        auth_info
     );
     println!(
         "  Ground Station: id={}, lat={}, lon={}, alt={}m",
         &config.ground_station.id,
-        &config.ground_station.latitude,
-        &config.ground_station.longitude,
-        &config.ground_station.altitude
+        &config.ground_station.location.latitude,
+        &config.ground_station.location.longitude,
+        &config.ground_station.location.altitude
     );
     println!("  API: {}:{}", config.api.host, config.api.port);
-    println!(
-        "  SDR: {}, {}",
-        config.sdr.r#type,
-        if let Some(ref s) = config.sdr.zmq_endpoint {
-            s
-        } else {
-            ""
-        }
-    );
+    println!("  SDR: {:?}", config.sdr);
 
     let observer = tracking::Observer::new(
-        config.ground_station.latitude,
-        config.ground_station.longitude,
-        config.ground_station.altitude,
+        config.ground_station.location.latitude,
+        config.ground_station.location.longitude,
+        config.ground_station.location.altitude,
     );
 
     let mut mqttoptions = MqttOptions::new(
@@ -103,10 +88,13 @@ async fn main() {
         config.mqtt.port,
     );
     mqttoptions.set_keep_alive(Duration::from_secs(config.mqtt.timeout_seconds));
-    mqttoptions.set_credentials(&config.mqtt.username, &config.mqtt.password);
+    
+    if let Some(ref auth) = config.mqtt.auth {
+        mqttoptions.set_credentials(&auth.username, &auth.password);
+    }
 
-    match config.mqtt.transport.as_str() {
-        "tls" => {
+    match config.mqtt.transport {
+        config::MqttTransport::Tls => {
             let mut root_cert_store = tokio_rustls::rustls::RootCertStore::empty();
             root_cert_store.add_parsable_certificates(
                 rustls_native_certs::load_native_certs().expect("could not load platform certs"),
@@ -118,7 +106,7 @@ async fn main() {
 
             mqttoptions.set_transport(Transport::tls_with_config(client_config.into()));
         }
-        "tcp" => {
+        config::MqttTransport::Tcp => {
             // Default transport (no action needed)
         }
         _ => panic!("Unsupported MQTT transport: {}", config.mqtt.transport),

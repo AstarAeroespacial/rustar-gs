@@ -8,51 +8,56 @@ pub struct Config {
     pub sdr: SdrConfig,
 }
 
+/// MQTT Transport Type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MqttTransport {
+    Tcp,
+    Tls,
+}
+
+/// MQTT Broker Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MqttConfig {
     pub host: String,
     pub port: u16,
-    pub transport: String,
+    pub transport: MqttTransport,
     pub timeout_seconds: u64,
+    pub auth: Option<MqttAuth>,
+}
+
+/// MQTT Authentication
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MqttAuth {
     pub username: String,
     pub password: String,
 }
 
-impl MqttConfig {
-    pub fn validate(&self) -> Result<(), String> {
-        match self.transport.as_str() {
-            "tcp" | "tls" => Ok(()),
-            _ => Err(format!(
-                "Unsupported MQTT transport: '{}'. Use 'tcp' or 'tls'",
-                self.transport
-            )),
-        }
-    }
-}
-
+/// Ground Station Location and Identification
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroundStationConfig {
     pub id: String,
+    pub location: Location,
+}
+
+/// Geographic Location
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Location {
     pub latitude: f64,
     pub longitude: f64,
     pub altitude: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SdrConfig {
-    pub r#type: String,
-    pub zmq_endpoint: Option<String>,
+/// SDR Type
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum SdrConfig {
+    Mock,
+    ZmqMock { zmq_endpoint: String },
+    Soapy { soapy_string: String },
 }
 
-impl SdrConfig {
-    pub fn validate(&self) -> Result<(), String> {
-        if self.r#type == "zmq_mock" && self.zmq_endpoint.is_none() {
-            return Err("if the type is zmq_mock, include zmq_endpoint".to_string());
-        }
-        Ok(())
-    }
-}
-
+/// API Server Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiConfig {
     pub host: String,

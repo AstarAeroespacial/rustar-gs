@@ -11,12 +11,20 @@ transport = "tls" # Transport type: "tcp" or "tls"
 # transport = "tcp"
 timeout_seconds = 30 # Connection timeout in seconds
 
+[mqtt.auth]
+# MQTT authentication credentials (optional - comment out for anonymous access)
+username = ""
+password = ""
+
 [ground_station]
-# Ground station identification and location
+# Ground station identification
 id = "GS-BUENOS-AIRES" # Unique identifier for this ground station
-latitude = -34.6       # Latitude in degrees (negative for South)
-longitude = -58.4      # Longitude in degrees (negative for West) 
-altitude = 2.5         # Altitude in meters above sea level
+
+[ground_station.location]
+# Geographic location
+latitude = -34.6  # Latitude in degrees (negative for South)
+longitude = -58.4 # Longitude in degrees (negative for West) 
+altitude = 2.5    # Altitude in meters above sea level
 
 [api]
 # REST API server configuration
@@ -24,10 +32,12 @@ host = "127.0.0.1" # API server bind address
 port = 9999        # API server port
 
 [sdr]
-# SDR configuration
+# SDR configuration - choose one type:
+# type = "mock"  # Synthetic test signal
 type = "zmq_mock"
-# if type = "zmq_mock" then "zmq_endpoint" is required
 zmq_endpoint = "tcp://127.0.0.1:5556"
+# type = "soapy"
+# soapy_string = "driver=rtlsdr"
 
 # Note: You can also override these values using environment variables:
 # RUSTAR_MQTT_HOST=192.168.1.100
