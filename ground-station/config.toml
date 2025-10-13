@@ -3,8 +3,10 @@
 
 [mqtt]
 # MQTT broker configuration
-host = "127.0.0.1"   # MQTT broker hostname or IP address
-port = 8888          # MQTT broker port
+host = "127.0.0.1" # MQTT broker hostname or IP address
+# host = "test.mosquitto.org"
+port = 8888 # MQTT broker port
+# port = 1883
 timeout_seconds = 30 # Connection timeout in seconds
 
 [ground_station]
