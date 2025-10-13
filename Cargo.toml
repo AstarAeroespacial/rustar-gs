@@ -5,8 +5,6 @@ members = [
     "framing",
     "demod",
     "telemetry",
-    "packetizer",
-    "mqtt-client",
     "api",
     "sdr",
     "jobs",

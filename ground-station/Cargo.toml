@@ -10,7 +10,6 @@ tracking = { git = "https://github.com/AstarAeroespacial/rustar-tracking" }
 antenna-controller = { path = "../antenna-controller" }
 demod = { path = "../demod" }
 framing = { path = "../framing" }
-packetizer = { path = "../packetizer" }
 chrono = "0.4.41"
 tokio = { version = "1.47.1", features = ["full"] }
 serde = { version = "1.0.219", features = ["derive"] }
