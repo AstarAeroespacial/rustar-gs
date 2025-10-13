@@ -12,7 +12,6 @@ use demod::{Demodulator, example::ExampleDemod};
 use framing::{deframer::Deframer, mock_deframer::MockDeframer};
 use jobs::JobScheduler;
 use mqtt_client::sender::MqttSender;
-use packetizer::{Packetizer, packetizer::TelemetryRecordPacketizer};
 use sdr::{MockSdr, SdrCommand, sdr_task};
 use std::{
     sync::{
@@ -130,7 +129,6 @@ async fn main() {
 
                     let deframer = MockDeframer::new();
                     let demodulator = ExampleDemod::new();
-                    let packetizer = TelemetryRecordPacketizer::new();
                     let controller = Arc::new(Mutex::new(MockController));
 
                     let (cmd_tx, cmd_rx) = mpsc::channel(1); // tokio channel
@@ -171,13 +169,13 @@ async fn main() {
                     let stop_clone = stop.clone();
                     let frame_handle = tokio::task::spawn_blocking(move || {
                         let bits = demodulator.bits(samp_rx.into_iter());
-                        let frames = deframer.frames(bits);
-                        let mut packets = packetizer.packets(frames);
+                        let mut frames = deframer.frames(bits);
 
                         while !stop_clone.load(Ordering::Relaxed) {
-                            if let Some(packet) = packets.next() {
+                            if let Some(frame) = frames.next() {
                                 // TODO: send via MQTT here.
-                                dbg!(&packet);
+                                dbg!(&frame);
+
                             }
                         }
                     });
