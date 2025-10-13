@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -13,7 +12,22 @@ pub struct Config {
 pub struct MqttConfig {
     pub host: String,
     pub port: u16,
+    pub transport: String,
     pub timeout_seconds: u64,
+    pub username: String,
+    pub password: String,
+}
+
+impl MqttConfig {
+    pub fn validate(&self) -> Result<(), String> {
+        match self.transport.as_str() {
+            "tcp" | "tls" => Ok(()),
+            _ => Err(format!(
+                "Unsupported MQTT transport: '{}'. Use 'tcp' or 'tls'",
+                self.transport
+            )),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,12 +70,5 @@ impl Config {
             .build()?;
 
         settings.try_deserialize()
-    }
-}
-
-impl MqttConfig {
-    /// Get timeout as Duration
-    pub fn timeout(&self) -> Duration {
-        Duration::from_secs(self.timeout_seconds)
     }
 }

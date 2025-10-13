@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 use demod::{Demodulator, example::ExampleDemod};
 use framing::{deframer::Deframer, mock_deframer::MockDeframer};
 use jobs::JobScheduler;
-use rumqttc::{AsyncClient, MqttOptions, QoS};
+use rumqttc::{AsyncClient, MqttOptions, QoS, Transport, tokio_rustls};
 use sdr::{MockSdr, SdrCommand, sdr_task};
 use serde::Serialize;
 use std::{
@@ -22,6 +22,7 @@ use std::{
     time::Duration,
 };
 use tokio::{net::TcpListener, sync::mpsc};
+use tokio_rustls::rustls::ClientConfig;
 use tracking::Tracker;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -58,8 +59,20 @@ async fn main() {
         std::process::exit(1);
     }
 
+    if let Err(e) = config.mqtt.validate() {
+        eprintln!("MQTT configuration error: {}", e);
+        std::process::exit(1);
+    }
+
     println!("Loaded configuration:");
-    println!("  MQTT: {}:{}", &config.mqtt.host, &config.mqtt.port);
+    println!(
+        "  MQTT: {}:{} ({}), username: {}, password: {}",
+        &config.mqtt.host,
+        &config.mqtt.port,
+        &config.mqtt.transport,
+        &config.mqtt.username,
+        &config.mqtt.password
+    );
     println!(
         "  Ground Station: id={}, lat={}, lon={}, alt={}m",
         &config.ground_station.id,
@@ -90,6 +103,26 @@ async fn main() {
         config.mqtt.port,
     );
     mqttoptions.set_keep_alive(Duration::from_secs(config.mqtt.timeout_seconds));
+    mqttoptions.set_credentials(&config.mqtt.username, &config.mqtt.password);
+
+    match config.mqtt.transport.as_str() {
+        "tls" => {
+            let mut root_cert_store = tokio_rustls::rustls::RootCertStore::empty();
+            root_cert_store.add_parsable_certificates(
+                rustls_native_certs::load_native_certs().expect("could not load platform certs"),
+            );
+
+            let client_config = ClientConfig::builder()
+                .with_root_certificates(root_cert_store)
+                .with_no_client_auth();
+
+            mqttoptions.set_transport(Transport::tls_with_config(client_config.into()));
+        }
+        "tcp" => {
+            // Default transport (no action needed)
+        }
+        _ => panic!("Unsupported MQTT transport: {}", config.mqtt.transport),
+    }
 
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
