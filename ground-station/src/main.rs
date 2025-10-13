@@ -7,12 +7,13 @@ use axum::{
     Router,
     routing::{get, post},
 };
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use demod::{Demodulator, example::ExampleDemod};
 use framing::{deframer::Deframer, mock_deframer::MockDeframer};
 use jobs::JobScheduler;
-use mqtt_client::sender::MqttSender;
+use rumqttc::{AsyncClient, MqttOptions, QoS};
 use sdr::{MockSdr, SdrCommand, sdr_task};
+use serde::Serialize;
 use std::{
     sync::{
         Arc, Mutex,
@@ -83,8 +84,14 @@ async fn main() {
         config.ground_station.altitude,
     );
 
-    let (_mqtt_send, _eventloop) =
-        MqttSender::new(&config.mqtt.host, config.mqtt.port, config.mqtt.timeout());
+    let mut mqttoptions = MqttOptions::new(
+        &config.ground_station.id,
+        &config.mqtt.host,
+        config.mqtt.port,
+    );
+    mqttoptions.set_keep_alive(Duration::from_secs(config.mqtt.timeout_seconds));
+
+    let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
     // Create channel for sending jobs from API to scheduler
     let (job_tx, mut job_rx) = mpsc::unbounded_channel::<jobs::Job>();
@@ -172,22 +179,67 @@ async fn main() {
 
                     // BITS/FRAMES - Move to blocking task to handle std::sync::mpsc
                     let stop_clone = stop.clone();
+                    let satellite_name = job.satellite_name.clone();
+                    let (frame_tx, mut frame_rx) = mpsc::unbounded_channel();
+
                     let frame_handle = tokio::task::spawn_blocking(move || {
                         let bits = demodulator.bits(samp_rx.into_iter());
                         let mut frames = deframer.frames(bits);
 
                         while !stop_clone.load(Ordering::Relaxed) {
                             if let Some(frame) = frames.next() {
-                                // TODO: send via MQTT here.
-                                dbg!(&frame);
-
+                                if let Some(payload) = frame.info {
+                                    let _ = frame_tx.send(payload).unwrap();
+                                }
                             }
                         }
                     });
 
-                    let _ = tokio::join!(tracker_handle, sdr_handle, frame_handle);
+                    // NOTE: it really is a pita to have both sync and async mixed contexts.
+                    // TODO: we should finish moving the demodulator and deframer to be async and be done with it.
+
+                    // MQTT publisher task
+                    let mqtt_handle = tokio::spawn(async move {
+                        while let Some(payload) = frame_rx.recv().await {
+                            let msg = TelemetryMessage::new(gs_id_clone.clone(), Utc::now(), payload);
+
+                            client_clone
+                                .publish(
+                                    &format!("{}/telemetry", satellite_name),
+                                    QoS::AtLeastOnce,
+                                    false,
+                                    serde_json::to_string(&msg).unwrap().as_bytes(),
+                                )
+                                .await
+                                .unwrap();
+                        }
+                    });
+
+
+                    let _ = tokio::join!(tracker_handle, sdr_handle, frame_handle, mqtt_handle);
                 });
             }
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct TelemetryMessage {
+    ground_station_id: String,
+    timestamp: DateTime<Utc>,
+    payload: Vec<u8>,
+}
+
+impl TelemetryMessage {
+    pub fn new(
+        ground_station_id: impl Into<String>,
+        timestamp: DateTime<Utc>,
+        payload: Vec<u8>,
+    ) -> Self {
+        Self {
+            ground_station_id: ground_station_id.into(),
+            timestamp,
+            payload,
         }
     }
 }
