@@ -56,15 +56,15 @@ async fn main() {
     let config = Arc::new(config);
 
     println!("Loaded configuration:");
-    let auth_info = config.mqtt.auth.as_ref()
+    let auth_info = config
+        .mqtt
+        .auth
+        .as_ref()
         .map(|a| format!("username: {}, password: {}", a.username, a.password))
         .unwrap_or_else(|| "no auth".to_string());
     println!(
         "  MQTT: {}:{} ({:?}), {}",
-        &config.mqtt.host,
-        &config.mqtt.port,
-        &config.mqtt.transport,
-        auth_info
+        &config.mqtt.host, &config.mqtt.port, &config.mqtt.transport, auth_info
     );
     println!(
         "  Ground Station: id={}, lat={}, lon={}, alt={}m",

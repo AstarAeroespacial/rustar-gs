@@ -1,48 +1,116 @@
+# ============================================================================
 # RUSTAR Ground Station Configuration
-# This file contains configuration parameters for the ground station software
+# ============================================================================
+# This file configures all aspects of the ground station software.
+# All values can be overridden via environment variables with RUSTAR_ prefix.
+# Example: RUSTAR_MQTT_HOST=broker.example.com
 
+# ============================================================================
+# MQTT Broker Configuration
+# ============================================================================
 [mqtt]
-# MQTT broker configuration
-host = "127.0.0.1" # MQTT broker hostname or IP address
-# host = "test.mosquitto.org"
-port = 8888 # MQTT broker port
-# port = 1883
-transport = "tls" # Transport type: "tcp" or "tls"
-# transport = "tcp"
-timeout_seconds = 30 # Connection timeout in seconds
+# Broker connection settings
+host = "test.mosquitto.org" # Hostname or IP address
+port = 8883                 # Port number (1883=TCP, 8883=TLS)
 
+# Transport layer security
+# REQUIRED: Must be one of: "tcp" | "tls"
+transport = "tls"
+
+# Connection timeout in seconds
+timeout_seconds = 30
+
+# Authentication credentials
+# OPTIONAL: Comment out entire [mqtt.auth] section for anonymous access
 [mqtt.auth]
-# MQTT authentication credentials (optional - comment out for anonymous access)
-username = ""
-password = ""
+username = "admin" # MQTT username
+password = "admin" # MQTT password
 
+# Examples for different broker types:
+# ----------------------------------------
+# Public test broker (no auth):
+#   host = "test.mosquitto.org"
+#   port = 1883
+#   transport = "tcp"
+#   # [mqtt.auth] section commented out
+#
+# Local broker with auth:
+#   host = "127.0.0.1"
+#   port = 1883
+#   transport = "tcp"
+#   [mqtt.auth]
+#   username = "user"
+#   password = "pass"
+#
+# Cloud broker with TLS:
+#   host = "broker.hivemq.cloud"
+#   port = 8883
+#   transport = "tls"
+#   [mqtt.auth]
+#   username = "user"
+#   password = "pass"
+
+# ============================================================================
+# Ground Station Configuration
+# ============================================================================
 [ground_station]
-# Ground station identification
-id = "GS-BUENOS-AIRES" # Unique identifier for this ground station
+# Unique identifier for this ground station
+# Used in MQTT topics: ground-station/{id}/telemetry
+id = "GS-BUENOS-AIRES"
 
+# Geographic location for satellite tracking
 [ground_station.location]
-# Geographic location
-latitude = -34.6  # Latitude in degrees (negative for South)
-longitude = -58.4 # Longitude in degrees (negative for West) 
-altitude = 2.5    # Altitude in meters above sea level
+latitude = -34.6  # Degrees (-90 to +90, negative = South)
+longitude = -58.4 # Degrees (-180 to +180, negative = West)
+altitude = 2.5    # Meters above sea level
 
+# ============================================================================
+# REST API Configuration
+# ============================================================================
 [api]
-# REST API server configuration
-host = "127.0.0.1" # API server bind address
-port = 9999        # API server port
+# HTTP server bind address
+host = "127.0.0.1" # IP address (use "0.0.0.0" to listen on all interfaces)
+port = 9999        # Port number
 
+# Swagger UI will be available at: http://{host}:{port}/docs
+
+# ============================================================================
+# SDR (Software Defined Radio) Configuration
+# ============================================================================
 [sdr]
-# SDR configuration - choose one type:
-# type = "mock"  # Synthetic test signal
-type = "zmq_mock"
-zmq_endpoint = "tcp://127.0.0.1:5556"
-# type = "soapy"
-# soapy_string = "driver=rtlsdr"
+# REQUIRED: Must be one of: "mock" | "zmq_mock" | "soapy"
 
-# Note: You can also override these values using environment variables:
-# RUSTAR_MQTT_HOST=192.168.1.100
-# RUSTAR_MQTT_PORT=1883
-# RUSTAR_GROUND_STATION_LATITUDE=-34.123
-# RUSTAR_API_HOST=0.0.0.0
-# RUSTAR_API_PORT=8080
-# etc.
+# Option 1: Mock SDR (generates synthetic test signals)
+# type = "mock"
+
+# Option 2: ZMQ Mock SDR (receives samples from GNU Radio via ZeroMQ)
+type = "zmq_mock"
+zmq_endpoint = "tcp://127.0.0.1:5556" # REQUIRED for zmq_mock
+
+# Option 3: SoapySDR (real hardware SDR)
+# type = "soapy"
+# soapy_string = "driver=rtlsdr"  # REQUIRED for soapy
+# Examples:
+#   soapy_string = "driver=rtlsdr"
+#   soapy_string = "driver=hackrf"
+#   soapy_string = "driver=airspy"
+
+# ============================================================================
+# Environment Variable Overrides
+# ============================================================================
+# Any configuration value can be overridden using environment variables.
+# Format: RUSTAR_{SECTION}_{SUBSECTION}_{KEY} (all uppercase)
+#
+# Examples:
+#   RUSTAR_MQTT_HOST=192.168.1.100
+#   RUSTAR_MQTT_PORT=1883
+#   RUSTAR_MQTT_TRANSPORT=tcp
+#   RUSTAR_MQTT_AUTH_USERNAME=myuser
+#   RUSTAR_MQTT_AUTH_PASSWORD=mypass
+#   RUSTAR_GROUND_STATION_ID=GS-002
+#   RUSTAR_GROUND_STATION_LOCATION_LATITUDE=-34.123
+#   RUSTAR_GROUND_STATION_LOCATION_LONGITUDE=-58.456
+#   RUSTAR_API_HOST=0.0.0.0
+#   RUSTAR_API_PORT=8080
+#   RUSTAR_SDR_TYPE=mock
+#   RUSTAR_SDR_ZMQ_ENDPOINT=tcp://localhost:5555
