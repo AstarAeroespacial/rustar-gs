@@ -50,6 +50,7 @@ async fn main() {
         eprintln!("See the example config.toml for the required format.");
         std::process::exit(1);
     });
+    let config = Arc::new(config);
 
     if let Err(e) = config.sdr.validate() {
         eprintln!("SDR configuration error: {}", e);
@@ -57,12 +58,13 @@ async fn main() {
     }
 
     println!("Loaded configuration:");
-    println!("  MQTT: {}:{}", config.mqtt.host, config.mqtt.port);
+    println!("  MQTT: {}:{}", &config.mqtt.host, &config.mqtt.port);
     println!(
-        "  Ground Station: lat={}, lon={}, alt={}m",
-        config.ground_station.latitude,
-        config.ground_station.longitude,
-        config.ground_station.altitude
+        "  Ground Station: id={}, lat={}, lon={}, alt={}m",
+        &config.ground_station.id,
+        &config.ground_station.latitude,
+        &config.ground_station.longitude,
+        &config.ground_station.altitude
     );
     println!("  API: {}:{}", config.api.host, config.api.port);
     println!(
@@ -117,8 +119,11 @@ async fn main() {
             job = scheduler.next_job() => {
                 println!("\nSTARTING PASS\n");
 
+                let config_clone = config.clone();
                 let observer_clone = observer.clone();
-                let sdr = create_sdr(&config.sdr);
+                let sdr = create_sdr(&config_clone.sdr);
+                let client_clone = client.clone();
+                let gs_id_clone = config_clone.ground_station.id.clone();
 
                 // Lanzar tracking en background
                 tokio::spawn(async move {

@@ -18,6 +18,7 @@ pub struct MqttConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroundStationConfig {
+    pub id: String,
     pub latitude: f64,
     pub longitude: f64,
     pub altitude: f64,
