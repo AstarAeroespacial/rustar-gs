@@ -6,6 +6,7 @@ pub struct Config {
     pub mqtt: MqttConfig,
     pub ground_station: GroundStationConfig,
     pub api: ApiConfig,
+    pub sdr: SdrConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,6 +21,21 @@ pub struct GroundStationConfig {
     pub latitude: f64,
     pub longitude: f64,
     pub altitude: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SdrConfig {
+    pub r#type: String,
+    pub zmq_endpoint: Option<String>,
+}
+
+impl SdrConfig {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.r#type == "zmq_mock" && self.zmq_endpoint.is_none() {
+            return Err("if the type is zmq_mock, include zmq_endpoint".to_string());
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

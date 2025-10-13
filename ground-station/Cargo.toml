@@ -22,4 +22,5 @@ axum = "0.8.4"
 utoipa = "5.4.0"
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 api = { path = "../api" }
+sdr = { path = "../sdr" }
 jobs = { path = "../jobs" }

@@ -15,8 +15,14 @@ altitude = 2.5    # Altitude in meters above sea level
 
 [api]
 # REST API server configuration
-host = "127.0.0.1"  # API server bind address
-port = 9999         # API server port
+host = "127.0.0.1" # API server bind address
+port = 9999        # API server port
+
+[sdr]
+# SDR configuration
+type = "zmq_mock"
+# if type = "zmq_mock" then "zmq_endpoint" is required
+zmq_endpoint = "tcp://127.0.0.1:5556"
 
 # Note: You can also override these values using environment variables:
 # RUSTAR_MQTT_HOST=192.168.1.100
