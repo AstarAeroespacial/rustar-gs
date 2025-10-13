@@ -1,12 +1,16 @@
 use crate::{deframer::Deframer, frame::Frame};
 
 pub struct MockDeframer<I> {
+    payload: Option<Vec<u8>>,
     _phantom: std::marker::PhantomData<I>,
 }
 
 impl<I> MockDeframer<I> {
-    pub fn new() -> Self {
+    pub fn new(payload: impl Into<Option<Vec<u8>>>) -> Self {
+        let payload = payload.into();
+
         Self {
+            payload: payload.into(),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -15,6 +19,7 @@ pub struct MockDeframerIterator<I>
 where
     I: Iterator<Item = Vec<bool>>,
 {
+    payload: Option<Vec<u8>>,
     input: I,
 }
 
@@ -34,7 +39,7 @@ where
 
         println!("[DEFRAMER] Yielding mock frame");
 
-        return Some(Frame::new(None));
+        return Some(Frame::new(self.payload.clone()));
     }
 }
 
@@ -46,6 +51,9 @@ where
     type Output = MockDeframerIterator<I>;
 
     fn frames(&self, input: Self::Input) -> Self::Output {
-        MockDeframerIterator { input }
+        MockDeframerIterator {
+            input,
+            payload: self.payload.clone(),
+        }
     }
 }

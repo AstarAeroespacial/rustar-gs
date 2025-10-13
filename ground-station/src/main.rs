@@ -132,7 +132,7 @@ async fn main() {
                     let tracker = Tracker::new(&observer_clone, job.elements).unwrap();
                     let stop = Arc::new(AtomicBool::new(false));
 
-                    let deframer = MockDeframer::new();
+                    let deframer = MockDeframer::new("IN A HOLE IN THE GROUND".as_bytes().to_vec());
                     let demodulator = ExampleDemod::new();
                     let controller = Arc::new(Mutex::new(MockController));
 
