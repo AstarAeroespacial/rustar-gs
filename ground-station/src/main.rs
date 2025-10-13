@@ -219,6 +219,13 @@ async fn main() {
                     let _ = tokio::join!(tracker_handle, sdr_handle, frame_handle, mqtt_handle);
                 });
             }
+            // Check MQTT.
+            Ok(notification) = eventloop.poll() => {
+                // match notification {
+                //     rumqttc::Event::Incoming(packet) => { println!("[MQTT] Received: {:?}", packet) },
+                //     rumqttc::Event::Outgoing(outgoing) => { println!("[MQTT] Sent: {:?}", outgoing) },
+                // }
+            }
         }
     }
 }
