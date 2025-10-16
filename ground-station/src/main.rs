@@ -69,11 +69,7 @@ async fn main() {
     println!(
         "  SDR: {}, {}",
         config.sdr.r#type,
-        if let Some(ref s) = config.sdr.zmq_endpoint {
-            s
-        } else {
-            ""
-        }
+        config.sdr.zmq_endpoint.as_deref().unwrap_or("")
     );
 
     let observer = tracking::Observer::new(
