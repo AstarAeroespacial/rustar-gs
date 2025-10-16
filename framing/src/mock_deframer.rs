@@ -4,6 +4,12 @@ pub struct MockDeframer<I> {
     _phantom: std::marker::PhantomData<I>,
 }
 
+impl<I> Default for MockDeframer<I> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<I> MockDeframer<I> {
     pub fn new() -> Self {
         Self {
@@ -34,7 +40,7 @@ where
 
         println!("[DEFRAMER] Yielding mock frame");
 
-        return Some(Frame::new(None));
+        Some(Frame::new(None))
     }
 }
 

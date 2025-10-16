@@ -178,7 +178,7 @@ pub async fn add_job(
     // TODO: somehow manage the fact that the job may have been sent successfully, but not scheduled
 
     // Send job through channel
-    if let Err(_) = job_tx.send(job) {
+    if job_tx.send(job).is_err() {
         eprintln!("Failed to send job to scheduler");
 
         return Json(json!({"status": "error", "message": "Failed to add job to scheduler"}));

@@ -35,7 +35,7 @@ where
             }
         }
 
-        return Some(vec![true]);
+        Some(vec![true])
     }
 }
 
