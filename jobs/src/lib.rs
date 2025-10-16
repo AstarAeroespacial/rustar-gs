@@ -48,13 +48,22 @@ impl ScheduledJob {
 /// ```
 /// use chrono::{Utc, Duration as ChronoDuration};
 /// use jobs::{JobScheduler, ScheduledJob, Job};
+/// use tracking::Elements;
 ///
 /// #[tokio::main]
 /// async fn main() {
 ///     let mut scheduler = JobScheduler::new();
 ///
 ///     // Create a job 1 second from now
-///     let job = Job { timestamp: Utc::now() + ChronoDuration::seconds(1) };
+///     let elements = Elements::from_tle(
+///         Some("ISS (ZARYA)".to_owned()),
+///         "1 25544U 98067A   08264.51782528 -.00002182  00000-0 -11606-4 0  2927".as_bytes(),
+///         "2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.72125391563537".as_bytes(),
+///     ).unwrap();
+///     let job = Job { 
+///         timestamp: Utc::now() + ChronoDuration::seconds(1),
+///         elements,
+///     };
 ///     scheduler.set_job(ScheduledJob::from_job(job)).unwrap();
 ///
 ///     // Wait for the job to fire
