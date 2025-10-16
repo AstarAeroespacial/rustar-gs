@@ -57,7 +57,8 @@ mod tests {
     #[test]
     fn example() {
         let demodulator = ExampleDemod {};
-        let mut bits = demodulator.bits(vec![vec![1f64], vec![2f64]].into_iter());
+        let samples = vec![vec![1f64]; 20];
+        let mut bits = demodulator.bits(samples.into_iter());
 
         assert_eq!(bits.next(), Some(vec![true]));
         assert_eq!(bits.next(), Some(vec![true]));
