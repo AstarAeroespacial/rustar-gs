@@ -76,6 +76,12 @@ pub struct JobScheduler {
     notify: Arc<Notify>,
 }
 
+impl Default for JobScheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JobScheduler {
     /// Create a new empty scheduler.
     pub fn new() -> Self {

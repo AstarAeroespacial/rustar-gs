@@ -30,9 +30,7 @@ where
     // Returns a bit every 10 sample reads.
     fn next(&mut self) -> Option<Self::Item> {
         for _ in 0..10 {
-            if self.inner.next().is_none() {
-                return None;
-            }
+            self.inner.next()?;
         }
 
         Some(vec![true])

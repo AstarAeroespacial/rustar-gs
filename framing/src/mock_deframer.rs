@@ -33,9 +33,7 @@ where
     // Returns a frame every 10 bit reads.
     fn next(&mut self) -> Option<Self::Item> {
         for _ in 0..10 {
-            if self.input.next().is_none() {
-                return None;
-            }
+            self.input.next()?;
         }
 
         println!("[DEFRAMER] Yielding mock frame");
