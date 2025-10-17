@@ -16,6 +16,7 @@ async fn main() {
     let job = Job {
         timestamp: Utc::now() + Duration::seconds(2),
         elements,
+        satellite_name: "ISS (ZARYA)".to_string(),
     };
 
     // convert it to ScheduledJob automatically
