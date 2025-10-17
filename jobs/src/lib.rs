@@ -9,6 +9,7 @@ use tokio::{
 pub struct Job {
     pub timestamp: DateTime<Utc>,
     pub elements: tracking::Elements,
+    pub satellite_name: String,
 }
 
 /// A job scheduled to run at a specific `Instant`.

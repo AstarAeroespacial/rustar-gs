@@ -159,7 +159,7 @@ pub async fn add_job(
 
     // Convert JobRequestDTO to Job
     let elements = match tracking::Elements::from_tle(
-        Some(payload.tle.tle0),
+        Some(payload.tle.tle0.clone()),
         payload.tle.tle1.as_bytes(),
         payload.tle.tle2.as_bytes(),
     ) {
@@ -174,6 +174,7 @@ pub async fn add_job(
     let job = jobs::Job {
         timestamp: payload.start,
         elements,
+        satellite_name: payload.tle.tle0.clone(),
     };
 
     // TODO: somehow manage the fact that the job may have been sent successfully, but not scheduled
