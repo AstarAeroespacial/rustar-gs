@@ -64,6 +64,7 @@ impl ScheduledJob {
 ///     let job = Job {
 ///         timestamp: Utc::now() + ChronoDuration::seconds(1),
 ///         elements,
+///         satellite_name: "ISS (ZARYA)".to_string(),
 ///     };
 ///     scheduler.set_job(ScheduledJob::from_job(job)).unwrap();
 ///

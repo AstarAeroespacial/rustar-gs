@@ -7,8 +7,6 @@ pub struct MockDeframer<I> {
 
 impl<I> MockDeframer<I> {
     pub fn new(payload: impl Into<Option<Vec<u8>>>) -> Self {
-        let payload = payload.into();
-
         Self {
             payload: payload.into(),
             _phantom: std::marker::PhantomData,

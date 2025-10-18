@@ -109,7 +109,6 @@ async fn main() {
         config::MqttTransport::Tcp => {
             // Default transport (no action needed)
         }
-        _ => panic!("Unsupported MQTT transport: {:?}", config.mqtt.transport),
     }
 
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
@@ -210,7 +209,7 @@ async fn main() {
                         while !stop_clone.load(Ordering::Relaxed) {
                             if let Some(frame) = frames.next() {
                                 if let Some(payload) = frame.info {
-                                    let _ = frame_tx.send(payload).unwrap();
+                                    frame_tx.send(payload).unwrap();
                                 }
                             }
                         }
@@ -241,7 +240,7 @@ async fn main() {
                 });
             }
             // Check MQTT.
-            Ok(notification) = eventloop.poll() => {
+            Ok(_notification) = eventloop.poll() => {
                 // match notification {
                 //     rumqttc::Event::Incoming(packet) => { println!("[MQTT] Received: {:?}", packet) },
                 //     rumqttc::Event::Outgoing(outgoing) => { println!("[MQTT] Sent: {:?}", outgoing) },
