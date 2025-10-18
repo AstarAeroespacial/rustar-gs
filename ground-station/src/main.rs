@@ -207,10 +207,8 @@ async fn main() {
                         let mut frames = deframer.frames(bits);
 
                         while !stop_clone.load(Ordering::Relaxed) {
-                            if let Some(frame) = frames.next() {
-                                if let Some(payload) = frame.info {
-                                    frame_tx.send(payload).unwrap();
-                                }
+                            if let Some(payload) = frames.next().and_then(|frame| frame.info) {
+                                frame_tx.send(payload).unwrap();
                             }
                         }
                     });
