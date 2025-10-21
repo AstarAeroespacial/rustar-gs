@@ -1,6 +1,13 @@
+mod api;
 mod config;
+mod job;
+mod scheduler;
 
-use crate::config::Config;
+use crate::{
+    config::Config,
+    job::{Job, JobStatus, TleData},
+    scheduler::Scheduler,
+};
 use antenna_controller::{self, AntennaController, mock::MockController};
 use api::{ApiDoc, add_job, root};
 use axum::{
@@ -10,8 +17,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use demod::{Demodulator, example::ExampleDemod};
 use framing::{deframer::Deframer, mock_deframer::MockDeframer};
-use jobs::JobScheduler;
-use rumqttc::{AsyncClient, MqttOptions, QoS, Transport, tokio_rustls};
+use rumqttc::{AsyncClient, Incoming, MqttOptions, QoS, Transport, tokio_rustls};
 use sdr::{MockSdr, SdrCommand, sdr_task};
 use serde::Serialize;
 use std::{
@@ -23,7 +29,7 @@ use std::{
 };
 use tokio::{net::TcpListener, sync::mpsc};
 use tokio_rustls::rustls::ClientConfig;
-use tracking::Tracker;
+use tracking::{Elements, Tracker};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -88,7 +94,7 @@ async fn main() {
         config.mqtt.port,
     );
     mqttoptions.set_keep_alive(Duration::from_secs(config.mqtt.timeout_seconds));
-    
+
     if let Some(ref auth) = config.mqtt.auth {
         mqttoptions.set_credentials(&auth.username, &auth.password);
     }
@@ -109,14 +115,15 @@ async fn main() {
         config::MqttTransport::Tcp => {
             // Default transport (no action needed)
         }
-        _ => panic!("Unsupported MQTT transport: {}", config.mqtt.transport),
     }
 
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+    let jobs_topic = &format!("gs/{}/job", &config.ground_station.id);
+    client.subscribe(jobs_topic, QoS::AtMostOnce).await.unwrap();
 
-    // Create channel for sending jobs from API to scheduler
-    let (job_tx, mut job_rx) = mpsc::unbounded_channel::<jobs::Job>();
-    let mut scheduler = JobScheduler::new();
+    // Create channel for sending jobs to scheduler
+    let (job_tx, mut job_rx) = mpsc::unbounded_channel::<Job>();
+    let mut scheduler = Scheduler::<Job>::new();
 
     let api_addr = format!("{}:{}", config.api.host, config.api.port);
     let listener = TcpListener::bind(&api_addr).await.unwrap();
@@ -125,7 +132,7 @@ async fn main() {
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/", get(root))
         .route("/jobs", post(add_job))
-        .with_state(job_tx);
+        .with_state(job_tx.clone());
 
     tokio::spawn(async move {
         println!("Swagger UI available at http://{}/docs", api_addr);
@@ -135,16 +142,51 @@ async fn main() {
 
     loop {
         tokio::select! {
-            // Receive jobs from API and add them to scheduler
+            // Receive jobs from API and add them to scheduler.
             Some(job) = job_rx.recv() => {
-                println!("Received job for {:?}", job.timestamp);
+                println!("Received job for {:?}", job.start);
 
-                if let Err(e) = scheduler.set_job(jobs::ScheduledJob::from_job(job)) {
-                    eprintln!("Failed to schedule job: {:?}", e);
+                let client_clone = client.clone();
+                let gs_id_clone = config.ground_station.id.clone();
+                let job_id = job.id;
+
+                match scheduler.schedule(job) {
+                    Ok(_) => {
+                        tokio::spawn(async move {
+                            client_clone
+                                .publish(
+                                    &format!("gs/{}/job/{}", gs_id_clone, job_id),
+                                    QoS::AtLeastOnce,
+                                    true,
+                                    serde_json::to_string(&JobStatus::Scheduled)
+                                        .unwrap()
+                                        .as_bytes(),
+                                )
+                                .await
+                                .unwrap();
+                        });
+                    },
+                    Err(_) => {
+                        println!("Failed to schedule job.");
+
+                        tokio::spawn(async move {
+                            client_clone
+                                .publish(
+                                    &format!("gs/{}/job/{}", gs_id_clone, job_id),
+                                    QoS::AtLeastOnce,
+                                    true,
+                                    serde_json::to_string(&JobStatus::Error) // TODO: better error
+                                        .unwrap()
+                                        .as_bytes(),
+                                )
+                                .await
+                                .unwrap();
+                        });
+                    },
                 }
             }
-            // Execute scheduled jobs
-            job = scheduler.next_job() => {
+            // Execute scheduled job.
+            job = scheduler.next() => {
                 println!("\nSTARTING PASS\n");
 
                 let config_clone = config.clone();
@@ -157,7 +199,7 @@ async fn main() {
                 tokio::spawn(async move {
 
                     // INIT SETUP
-                    let tracker = Tracker::new(&observer_clone, job.elements).unwrap();
+                    let tracker = Tracker::new(&observer_clone, job.tle.into()).unwrap();
                     let stop = Arc::new(AtomicBool::new(false));
 
                     let deframer = MockDeframer::new("IN A HOLE IN THE GROUND".as_bytes().to_vec());
@@ -242,10 +284,44 @@ async fn main() {
             }
             // Check MQTT.
             Ok(notification) = eventloop.poll() => {
-                // match notification {
-                //     rumqttc::Event::Incoming(packet) => { println!("[MQTT] Received: {:?}", packet) },
-                //     rumqttc::Event::Outgoing(outgoing) => { println!("[MQTT] Sent: {:?}", outgoing) },
-                // }
+                match notification {
+                    rumqttc::Event::Incoming(Incoming::Publish(p)) => {
+                        println!("[MQTT] Received: {:?}", p);
+
+                        match p.topic.as_str() {
+                            topic if topic == jobs_topic => {
+                                let job_str = std::str::from_utf8(&p.payload).unwrap();
+                                let job: Job = serde_json::from_str(job_str).unwrap();
+                                let job_id = job.id;
+                                job_tx.send(job).unwrap();
+
+                                let client_clone = client.clone();
+                                let gs_id_clone = config.ground_station.id.clone();
+
+                                tokio::spawn(async move {
+                                    client_clone
+                                        .publish(
+                                            &format!("gs/{}/job/{}", gs_id_clone, job_id),
+                                            QoS::AtLeastOnce,
+                                            true,
+                                            serde_json::to_string(&JobStatus::Received)
+                                                .unwrap()
+                                                .as_bytes(),
+                                        )
+                                        .await
+                                        .unwrap();
+                                });
+                            }
+                            _ => {
+                                panic!("{}", format!("No handler for topic {}", p.topic))
+                            }
+                        }
+                    }
+                    rumqttc::Event::Outgoing(outgoing) => {
+                        println!("[MQTT] Sent: {:?}", outgoing)
+                    }
+                    _ => {}
+                }
             }
         }
     }
@@ -269,5 +345,16 @@ impl TelemetryMessage {
             timestamp,
             payload,
         }
+    }
+}
+
+impl From<TleData> for Elements {
+    fn from(value: TleData) -> Self {
+        tracking::Elements::from_tle(
+            Some(value.tle0.clone()),
+            value.tle1.as_bytes(),
+            value.tle2.as_bytes(),
+        )
+        .unwrap()
     }
 }
