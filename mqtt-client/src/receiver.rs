@@ -23,13 +23,12 @@ async fn receiving_loop(
             }
             ev = eventloop.poll() => {
                 match ev {
-                    Ok(Incoming(pk)) => {
-                        if let Publish(msg) = pk {
-                            if let Ok(s) = String::from_utf8(msg.payload.to_vec()) {
-                                let _ = tx.send(s);
-                            }
+                    Ok(Incoming(Publish(msg))) => {
+                        if let Ok(s) = String::from_utf8(msg.payload.to_vec()) {
+                            let _ = tx.send(s);
                         }
                     }
+                    Ok(Incoming(_)) => { /* Other incoming packets */ }
                     Ok(Outgoing(_)) => { /* println!("Outgoing event"); */ }
                     Err(e) => {
                         eprintln!("Eventloop error: {}", e);

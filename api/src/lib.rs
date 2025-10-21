@@ -78,6 +78,7 @@ pub struct TleData {
 /// - `start` and `end` must be **UTC timestamps** in ISO-8601 format. (Use https://www.utctime.net/ for getting the current UTC timestamp.)
 /// - `tle1` and `tle2` **must be exactly 69 characters long** with valid checksums.
 /// - `rx_frequency` and `tx_frequency` are expressed in **Hertz**.
+#[allow(dead_code)]
 #[derive(Deserialize, ToSchema, Debug)]
 pub struct JobRequestDTO {
     /// UTC timestamp for when the tracking should **begin**.
@@ -179,7 +180,7 @@ pub async fn add_job(
     // TODO: somehow manage the fact that the job may have been sent successfully, but not scheduled
 
     // Send job through channel
-    if let Err(_) = job_tx.send(job) {
+    if job_tx.send(job).is_err() {
         eprintln!("Failed to send job to scheduler");
 
         return Json(json!({"status": "error", "message": "Failed to add job to scheduler"}));
