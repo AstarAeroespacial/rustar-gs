@@ -152,6 +152,7 @@ async fn main() {
 
                 match scheduler.schedule(job) {
                     Ok(_) => {
+                        // TODO: add last will message in case of failure?
                         tokio::spawn(async move {
                             client_clone
                                 .publish(
@@ -192,6 +193,25 @@ async fn main() {
                 let config_clone = config.clone();
                 let observer_clone = observer.clone();
                 let sdr = create_sdr(&config_clone.sdr);
+
+                let client_for_started = client.clone();
+                let gs_id_for_started = config_clone.ground_station.id.clone();
+                let job_id_for_started = job.id;
+
+                tokio::spawn(async move {
+                    client_for_started
+                        .publish(
+                            &format!("gs/{}/job/{}", gs_id_for_started, job_id_for_started),
+                            QoS::AtLeastOnce,
+                            true,
+                            serde_json::to_string(&JobStatus::Started)
+                                .unwrap()
+                                .as_bytes(),
+                        )
+                        .await
+                        .unwrap();
+                });
+
                 let client_clone = client.clone();
                 let gs_id_clone = config_clone.ground_station.id.clone();
 
@@ -262,11 +282,13 @@ async fn main() {
                     // TODO: we should finish moving the demodulator and deframer to be async and be done with it.
 
                     // MQTT publisher task
+                    let client_for_mqtt = client_clone.clone();
+                    let gs_id_for_mqtt = gs_id_clone.clone();
                     let mqtt_handle = tokio::spawn(async move {
                         while let Some(payload) = frame_rx.recv().await {
-                            let msg = TelemetryMessage::new(gs_id_clone.clone(), Utc::now(), payload);
+                            let msg = TelemetryMessage::new(gs_id_for_mqtt.clone(), Utc::now(), payload);
 
-                            client_clone
+                            client_for_mqtt
                                 .publish(
                                     &format!("satellite/{}/telemetry", satellite_name),
                                     QoS::AtLeastOnce,
@@ -278,8 +300,24 @@ async fn main() {
                         }
                     });
 
-
                     let _ = tokio::join!(tracker_handle, sdr_handle, frame_handle, mqtt_handle);
+
+                    let client_for_completed = client_clone.clone();
+                    let gs_id_for_completed = gs_id_clone.clone();
+                    let job_id_for_completed = job.id;
+                    tokio::spawn(async move {
+                        client_for_completed
+                            .publish(
+                                &format!("gs/{}/job/{}", gs_id_for_completed, job_id_for_completed),
+                                QoS::AtLeastOnce,
+                                true,
+                                serde_json::to_string(&JobStatus::Completed)
+                                    .unwrap()
+                                    .as_bytes(),
+                            )
+                            .await
+                            .unwrap();
+                    });
                 });
             }
             // Check MQTT.
