@@ -20,9 +20,7 @@ tokio-stream = "0.1.17"
 axum = "0.8.4"
 utoipa = "5.4.0"
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
-api = { path = "../api" }
 sdr = { path = "../sdr" }
-jobs = { path = "../jobs" }
 rumqttc = "0.25.0"
 rustls-native-certs = "0.8.1"
 tokio-rustls = "0.26.4"
