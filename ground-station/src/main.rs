@@ -95,7 +95,6 @@ async fn main() {
     );
     mqttoptions.set_keep_alive(Duration::from_secs(config.mqtt.timeout_seconds));
 
-
     if let Some(ref auth) = config.mqtt.auth {
         mqttoptions.set_credentials(&auth.username, &auth.password);
     }

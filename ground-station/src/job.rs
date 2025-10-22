@@ -146,10 +146,7 @@ impl From<Job> for Task<Job> {
 
         dbg!(&duration);
 
-        Task {
-            instant,
-            data: value,
-        }
+        Task::new(instant, value)
     }
 }
 
