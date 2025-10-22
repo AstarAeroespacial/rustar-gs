@@ -1,6 +1,13 @@
+mod api;
 mod config;
+mod job;
+mod scheduler;
 
-use crate::config::Config;
+use crate::{
+    config::Config,
+    job::{Job, JobStatus, TleData},
+    scheduler::Scheduler,
+};
 use antenna_controller::{self, AntennaController, mock::MockController};
 use api::{ApiDoc, add_job, root};
 use axum::{
@@ -10,8 +17,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use demod::{Demodulator, example::ExampleDemod};
 use framing::{deframer::Deframer, mock_deframer::MockDeframer};
-use jobs::JobScheduler;
-use rumqttc::{AsyncClient, MqttOptions, QoS, Transport, tokio_rustls};
+use rumqttc::{AsyncClient, Incoming, MqttOptions, QoS, Transport, tokio_rustls};
 use sdr::{MockSdr, SdrCommand, sdr_task};
 use serde::Serialize;
 use std::{
@@ -23,7 +29,7 @@ use std::{
 };
 use tokio::{net::TcpListener, sync::mpsc};
 use tokio_rustls::rustls::ClientConfig;
-use tracking::Tracker;
+use tracking::{Elements, Tracker};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -112,10 +118,12 @@ async fn main() {
     }
 
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+    let jobs_topic = &format!("gs/{}/job", &config.ground_station.id);
+    client.subscribe(jobs_topic, QoS::AtMostOnce).await.unwrap();
 
-    // Create channel for sending jobs from API to scheduler
-    let (job_tx, mut job_rx) = mpsc::unbounded_channel::<jobs::Job>();
-    let mut scheduler = JobScheduler::new();
+    // Create channel for sending jobs to scheduler
+    let (job_tx, mut job_rx) = mpsc::unbounded_channel::<Job>();
+    let mut scheduler = Scheduler::<Job>::new();
 
     let api_addr = format!("{}:{}", config.api.host, config.api.port);
     let listener = TcpListener::bind(&api_addr).await.unwrap();
@@ -124,7 +132,7 @@ async fn main() {
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/", get(root))
         .route("/jobs", post(add_job))
-        .with_state(job_tx);
+        .with_state(job_tx.clone());
 
     tokio::spawn(async move {
         println!("Swagger UI available at http://{}/docs", api_addr);
@@ -134,21 +142,76 @@ async fn main() {
 
     loop {
         tokio::select! {
-            // Receive jobs from API and add them to scheduler
+            // Receive jobs from API and add them to scheduler.
             Some(job) = job_rx.recv() => {
-                println!("Received job for {:?}", job.timestamp);
+                println!("Received job for {:?}", job.start);
 
-                if let Err(e) = scheduler.set_job(jobs::ScheduledJob::from_job(job)) {
-                    eprintln!("Failed to schedule job: {:?}", e);
+                let client_clone = client.clone();
+                let gs_id_clone = config.ground_station.id.clone();
+                let job_id = job.id;
+
+                match scheduler.schedule(job) {
+                    Ok(_) => {
+                        // TODO: add last will message in case of failure?
+                        tokio::spawn(async move {
+                            client_clone
+                                .publish(
+                                    &format!("gs/{}/job/{}", gs_id_clone, job_id),
+                                    QoS::AtLeastOnce,
+                                    true,
+                                    serde_json::to_string(&JobStatus::Scheduled)
+                                        .unwrap()
+                                        .as_bytes(),
+                                )
+                                .await
+                                .unwrap();
+                        });
+                    },
+                    Err(_) => {
+                        println!("Failed to schedule job.");
+
+                        tokio::spawn(async move {
+                            client_clone
+                                .publish(
+                                    &format!("gs/{}/job/{}", gs_id_clone, job_id),
+                                    QoS::AtLeastOnce,
+                                    true,
+                                    serde_json::to_string(&JobStatus::Error) // TODO: better error
+                                        .unwrap()
+                                        .as_bytes(),
+                                )
+                                .await
+                                .unwrap();
+                        });
+                    },
                 }
             }
-            // Execute scheduled jobs
-            job = scheduler.next_job() => {
+            // Execute scheduled job.
+            job = scheduler.next() => {
                 println!("\nSTARTING PASS\n");
 
                 let config_clone = config.clone();
                 let observer_clone = observer.clone();
                 let sdr = create_sdr(&config_clone.sdr);
+
+                let client_for_started = client.clone();
+                let gs_id_for_started = config_clone.ground_station.id.clone();
+                let job_id_for_started = job.id;
+
+                tokio::spawn(async move {
+                    client_for_started
+                        .publish(
+                            &format!("gs/{}/job/{}", gs_id_for_started, job_id_for_started),
+                            QoS::AtLeastOnce,
+                            true,
+                            serde_json::to_string(&JobStatus::Started)
+                                .unwrap()
+                                .as_bytes(),
+                        )
+                        .await
+                        .unwrap();
+                });
+
                 let client_clone = client.clone();
                 let gs_id_clone = config_clone.ground_station.id.clone();
 
@@ -156,7 +219,7 @@ async fn main() {
                 tokio::spawn(async move {
 
                     // INIT SETUP
-                    let tracker = Tracker::new(&observer_clone, job.elements).unwrap();
+                    let tracker = Tracker::new(&observer_clone, job.tle.into()).unwrap();
                     let stop = Arc::new(AtomicBool::new(false));
 
                     let deframer = MockDeframer::new("IN A HOLE IN THE GROUND".as_bytes().to_vec());
@@ -217,11 +280,13 @@ async fn main() {
                     // TODO: we should finish moving the demodulator and deframer to be async and be done with it.
 
                     // MQTT publisher task
+                    let client_for_mqtt = client_clone.clone();
+                    let gs_id_for_mqtt = gs_id_clone.clone();
                     let mqtt_handle = tokio::spawn(async move {
                         while let Some(payload) = frame_rx.recv().await {
-                            let msg = TelemetryMessage::new(gs_id_clone.clone(), Utc::now(), payload);
+                            let msg = TelemetryMessage::new(gs_id_for_mqtt.clone(), Utc::now(), payload);
 
-                            client_clone
+                            client_for_mqtt
                                 .publish(
                                     &format!("satellite/{}/telemetry", satellite_name),
                                     QoS::AtLeastOnce,
@@ -233,16 +298,66 @@ async fn main() {
                         }
                     });
 
-
                     let _ = tokio::join!(tracker_handle, sdr_handle, frame_handle, mqtt_handle);
+
+                    let client_for_completed = client_clone.clone();
+                    let gs_id_for_completed = gs_id_clone.clone();
+                    let job_id_for_completed = job.id;
+                    tokio::spawn(async move {
+                        client_for_completed
+                            .publish(
+                                &format!("gs/{}/job/{}", gs_id_for_completed, job_id_for_completed),
+                                QoS::AtLeastOnce,
+                                true,
+                                serde_json::to_string(&JobStatus::Completed)
+                                    .unwrap()
+                                    .as_bytes(),
+                            )
+                            .await
+                            .unwrap();
+                    });
                 });
             }
             // Check MQTT.
-            Ok(_notification) = eventloop.poll() => {
-                // match notification {
-                //     rumqttc::Event::Incoming(packet) => { println!("[MQTT] Received: {:?}", packet) },
-                //     rumqttc::Event::Outgoing(outgoing) => { println!("[MQTT] Sent: {:?}", outgoing) },
-                // }
+            Ok(notification) = eventloop.poll() => {
+                match notification {
+                    rumqttc::Event::Incoming(Incoming::Publish(p)) => {
+                        println!("[MQTT] Received: {:?}", p);
+
+                        match p.topic.as_str() {
+                            topic if topic == jobs_topic => {
+                                let job_str = std::str::from_utf8(&p.payload).unwrap();
+                                let job: Job = serde_json::from_str(job_str).unwrap();
+                                let job_id = job.id;
+                                job_tx.send(job).unwrap();
+
+                                let client_clone = client.clone();
+                                let gs_id_clone = config.ground_station.id.clone();
+
+                                tokio::spawn(async move {
+                                    client_clone
+                                        .publish(
+                                            &format!("gs/{}/job/{}", gs_id_clone, job_id),
+                                            QoS::AtLeastOnce,
+                                            true,
+                                            serde_json::to_string(&JobStatus::Received)
+                                                .unwrap()
+                                                .as_bytes(),
+                                        )
+                                        .await
+                                        .unwrap();
+                                });
+                            }
+                            _ => {
+                                panic!("{}", format!("No handler for topic {}", p.topic))
+                            }
+                        }
+                    }
+                    rumqttc::Event::Outgoing(outgoing) => {
+                        println!("[MQTT] Sent: {:?}", outgoing)
+                    }
+                    _ => {}
+                }
             }
         }
     }
@@ -266,5 +381,16 @@ impl TelemetryMessage {
             timestamp,
             payload,
         }
+    }
+}
+
+impl From<TleData> for Elements {
+    fn from(value: TleData) -> Self {
+        tracking::Elements::from_tle(
+            Some(value.tle0.clone()),
+            value.tle1.as_bytes(),
+            value.tle2.as_bytes(),
+        )
+        .unwrap()
     }
 }
