@@ -30,12 +30,10 @@ where
     // Returns a bit every 10 sample reads.
     fn next(&mut self) -> Option<Self::Item> {
         for _ in 0..10 {
-            if self.inner.next().is_none() {
-                return None;
-            }
+            self.inner.next()?;
         }
 
-        return Some(vec![true]);
+        Some(vec![true])
     }
 }
 
@@ -57,7 +55,8 @@ mod tests {
     #[test]
     fn example() {
         let demodulator = ExampleDemod {};
-        let mut bits = demodulator.bits(vec![vec![1f64], vec![2f64]].into_iter());
+        let samples = vec![vec![1f64]; 20];
+        let mut bits = demodulator.bits(samples.into_iter());
 
         assert_eq!(bits.next(), Some(vec![true]));
         assert_eq!(bits.next(), Some(vec![true]));

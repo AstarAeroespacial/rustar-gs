@@ -405,11 +405,12 @@ mod tests {
         let bits = original.to_bits();
         let (b1, b2) = bits.split_at(bits.len() / 2);
 
-        let mut input = Vec::new();
-        input.push(vec![true, false]); // dummy bytes
-        input.push(b1.to_vec());
-        input.push(b2.to_vec());
-        input.push(vec![false, true]); // dummy bytes
+        let input = vec![
+            vec![true, false], // dummy bytes
+            b1.to_vec(),
+            b2.to_vec(),
+            vec![false, true], // dummy bytes
+        ];
 
         let deframer = HdlcDeframer::new();
 
@@ -428,11 +429,7 @@ mod tests {
         let frame2_bits = frame2.to_bits();
         let (c1, c2) = frame2_bits.split_at(frame2_bits.len() / 2);
 
-        let mut input = Vec::new();
-        input.push(b1.to_vec());
-        input.push(b2.to_vec());
-        input.push(c1.to_vec());
-        input.push(c2.to_vec());
+        let input = vec![b1.to_vec(), b2.to_vec(), c1.to_vec(), c2.to_vec()];
 
         let deframer = HdlcDeframer::new();
 

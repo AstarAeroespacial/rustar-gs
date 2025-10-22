@@ -44,6 +44,7 @@ use crate::scheduler::Task;
 /// - `tle1` and `tle2` **must be exactly 69 characters long** with valid checksums.
 /// - `rx_frequency` and `tx_frequency` are expressed in **Hertz**.
 /// - `uplink` is **optional** and contains raw bytes to transmit to the satellite during the pass.
+#[allow(dead_code)]
 #[derive(Deserialize, ToSchema, Debug)]
 pub struct Job {
     /// **Unique job identifier**.

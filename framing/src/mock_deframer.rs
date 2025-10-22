@@ -7,8 +7,6 @@ pub struct MockDeframer<I> {
 
 impl<I> MockDeframer<I> {
     pub fn new(payload: impl Into<Option<Vec<u8>>>) -> Self {
-        let payload = payload.into();
-
         Self {
             payload: payload.into(),
             _phantom: std::marker::PhantomData,
@@ -32,14 +30,12 @@ where
     // Returns a frame every 10 bit reads.
     fn next(&mut self) -> Option<Self::Item> {
         for _ in 0..10 {
-            if self.input.next().is_none() {
-                return None;
-            }
+            self.input.next()?;
         }
 
         println!("[DEFRAMER] Yielding mock frame");
 
-        return Some(Frame::new(self.payload.clone()));
+        Some(Frame::new(self.payload.clone()))
     }
 }
 
