@@ -7,6 +7,7 @@ edition = "2024"
 
 [dependencies]
 tracking = { git = "https://github.com/AstarAeroespacial/rustar-tracking" }
+rustar-types = { git = "https://github.com/AstarAeroespacial/rustar-types.git" }
 antenna-controller = { path = "../antenna-controller" }
 demod = { path = "../demod" }
 framing = { path = "../framing" }

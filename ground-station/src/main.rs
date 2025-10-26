@@ -1,12 +1,10 @@
 mod api;
 mod config;
-mod job;
 mod scheduler;
 
 use crate::{
     config::Config,
-    job::{Job, JobStatus, TleData},
-    scheduler::Scheduler,
+    scheduler::{Scheduler, Task},
 };
 use antenna_controller::{self, AntennaController, mock::MockController};
 use api::{ApiDoc, add_job, root};
@@ -14,12 +12,15 @@ use axum::{
     Router,
     routing::{get, post},
 };
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use demod::{Demodulator, example::ExampleDemod};
 use framing::{deframer::Deframer, mock_deframer::MockDeframer};
 use rumqttc::{AsyncClient, Incoming, MqttOptions, QoS, Transport, tokio_rustls};
+use rustar_types::{
+    jobs::{Job, JobStatus},
+    mqtt::telemetry::TelemetryMessage,
+};
 use sdr::{MockSdr, SdrCommand, sdr_task};
-use serde::Serialize;
 use std::{
     sync::{
         Arc, Mutex,
@@ -27,7 +28,7 @@ use std::{
     },
     time::Duration,
 };
-use tokio::{net::TcpListener, sync::mpsc};
+use tokio::{net::TcpListener, sync::mpsc, time::Instant};
 use tokio_rustls::rustls::ClientConfig;
 use tracking::{Elements, Tracker};
 use utoipa::OpenApi;
@@ -201,6 +202,7 @@ async fn main() {
                 tokio::spawn(async move {
                     client_for_started
                         .publish(
+                            // TODO: ¿? why publish to gs topic, only job is needed
                             &format!("gs/{}/job/{}", gs_id_for_started, job_id_for_started),
                             QoS::AtLeastOnce,
                             true,
@@ -219,7 +221,14 @@ async fn main() {
                 tokio::spawn(async move {
 
                     // INIT SETUP
-                    let tracker = Tracker::new(&observer_clone, job.tle.into()).unwrap();
+
+                    let elements = Elements::from_tle(
+                        Some(job.tle.tle0),
+                        &job.tle.tle1.as_bytes(),
+                        &job.tle.tle2.as_bytes(),
+                    )
+                    .unwrap();
+                    let tracker = Tracker::new(&observer_clone, elements).unwrap();
                     let stop = Arc::new(AtomicBool::new(false));
 
                     let deframer = MockDeframer::new("IN A HOLE IN THE GROUND".as_bytes().to_vec());
@@ -306,6 +315,7 @@ async fn main() {
                     tokio::spawn(async move {
                         client_for_completed
                             .publish(
+                                // TODO: again, why publish to gs topic?
                                 &format!("gs/{}/job/{}", gs_id_for_completed, job_id_for_completed),
                                 QoS::AtLeastOnce,
                                 true,
@@ -363,34 +373,18 @@ async fn main() {
     }
 }
 
-#[derive(Debug, Serialize)]
-struct TelemetryMessage {
-    ground_station_id: String,
-    timestamp: DateTime<Utc>,
-    payload: Vec<u8>,
-}
+impl From<Job> for Task<Job> {
+    fn from(value: Job) -> Self {
+        // Convert job.timestamp (DateTime<Utc>) into std::time::Duration
+        let now_utc = Utc::now();
+        let duration = value
+            .start
+            .signed_duration_since(now_utc)
+            .to_std()
+            .unwrap_or(Duration::from_secs(0)); // if it's in the past, clamp to now
 
-impl TelemetryMessage {
-    pub fn new(
-        ground_station_id: impl Into<String>,
-        timestamp: DateTime<Utc>,
-        payload: Vec<u8>,
-    ) -> Self {
-        Self {
-            ground_station_id: ground_station_id.into(),
-            timestamp,
-            payload,
-        }
-    }
-}
+        let instant = Instant::now() + duration;
 
-impl From<TleData> for Elements {
-    fn from(value: TleData) -> Self {
-        tracking::Elements::from_tle(
-            Some(value.tle0.clone()),
-            value.tle1.as_bytes(),
-            value.tle2.as_bytes(),
-        )
-        .unwrap()
+        Task::new(instant, value)
     }
 }
