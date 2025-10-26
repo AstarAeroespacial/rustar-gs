@@ -224,8 +224,8 @@ async fn main() {
 
                     let elements = Elements::from_tle(
                         Some(job.tle.tle0),
-                        &job.tle.tle1.as_bytes(),
-                        &job.tle.tle2.as_bytes(),
+                        job.tle.tle1.as_bytes(),
+                        job.tle.tle2.as_bytes(),
                     )
                     .unwrap();
                     let tracker = Tracker::new(&observer_clone, elements).unwrap();
