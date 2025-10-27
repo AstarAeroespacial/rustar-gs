@@ -1,8 +1,7 @@
 use axum::{Json, response::IntoResponse};
+use rustar_types::jobs::{Job, TleData};
 use serde_json::json;
 use utoipa::OpenApi;
-
-use crate::job::{Job, TleData};
 
 /// # API Documentation
 ///
