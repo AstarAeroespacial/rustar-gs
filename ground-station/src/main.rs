@@ -119,8 +119,11 @@ async fn main() {
     }
 
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-    let jobs_topic = &format!("gs/{}/job", &config.ground_station.id);
-    client.subscribe(jobs_topic, QoS::AtMostOnce).await.unwrap();
+    let jobs_topic = &format!("gs/{}/jobs", &config.ground_station.id);
+    client
+        .subscribe(jobs_topic, QoS::AtLeastOnce)
+        .await
+        .unwrap();
 
     // Create channel for sending jobs to scheduler
     let (job_tx, mut job_rx) = mpsc::unbounded_channel::<Job>();
@@ -148,7 +151,6 @@ async fn main() {
                 println!("Received job for {:?}", job.start);
 
                 let client_clone = client.clone();
-                let gs_id_clone = config.ground_station.id.clone();
                 let job_id = job.id;
 
                 match scheduler.schedule(job) {
@@ -157,7 +159,7 @@ async fn main() {
                         tokio::spawn(async move {
                             client_clone
                                 .publish(
-                                    &format!("gs/{}/job/{}", gs_id_clone, job_id),
+                                    &format!("job/{}", job_id),
                                     QoS::AtLeastOnce,
                                     true,
                                     serde_json::to_string(&JobStatus::Scheduled)
@@ -174,7 +176,7 @@ async fn main() {
                         tokio::spawn(async move {
                             client_clone
                                 .publish(
-                                    &format!("gs/{}/job/{}", gs_id_clone, job_id),
+                                    &format!("job/{}", job_id),
                                     QoS::AtLeastOnce,
                                     true,
                                     serde_json::to_string(&JobStatus::Error) // TODO: better error
@@ -196,14 +198,12 @@ async fn main() {
                 let sdr = create_sdr(&config_clone.sdr);
 
                 let client_for_started = client.clone();
-                let gs_id_for_started = config_clone.ground_station.id.clone();
                 let job_id_for_started = job.id;
 
                 tokio::spawn(async move {
                     client_for_started
                         .publish(
-                            // TODO: ¿? why publish to gs topic, only job is needed
-                            &format!("gs/{}/job/{}", gs_id_for_started, job_id_for_started),
+                            &format!("job/{}", job_id_for_started),
                             QoS::AtLeastOnce,
                             true,
                             serde_json::to_string(&JobStatus::Started)
@@ -310,13 +310,11 @@ async fn main() {
                     let _ = tokio::join!(tracker_handle, sdr_handle, frame_handle, mqtt_handle);
 
                     let client_for_completed = client_clone.clone();
-                    let gs_id_for_completed = gs_id_clone.clone();
                     let job_id_for_completed = job.id;
                     tokio::spawn(async move {
                         client_for_completed
                             .publish(
-                                // TODO: again, why publish to gs topic?
-                                &format!("gs/{}/job/{}", gs_id_for_completed, job_id_for_completed),
+                                &format!("job/{}", job_id_for_completed),
                                 QoS::AtLeastOnce,
                                 true,
                                 serde_json::to_string(&JobStatus::Completed)
@@ -342,12 +340,11 @@ async fn main() {
                                 job_tx.send(job).unwrap();
 
                                 let client_clone = client.clone();
-                                let gs_id_clone = config.ground_station.id.clone();
 
                                 tokio::spawn(async move {
                                     client_clone
                                         .publish(
-                                            &format!("gs/{}/job/{}", gs_id_clone, job_id),
+                                            &format!("job/{}", job_id),
                                             QoS::AtLeastOnce,
                                             true,
                                             serde_json::to_string(&JobStatus::Received)
