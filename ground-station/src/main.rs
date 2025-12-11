@@ -271,7 +271,7 @@ async fn main() {
 
                     // BITS/FRAMES - Move to blocking task to handle std::sync::mpsc
                     let stop_clone = stop.clone();
-                    let satellite_name = job.satellite_name.clone();
+                    let satellite_id = job.satellite_id.clone();
                     let (frame_tx, mut frame_rx) = mpsc::unbounded_channel();
 
                     let frame_handle = tokio::task::spawn_blocking(move || {
@@ -297,7 +297,7 @@ async fn main() {
 
                             client_for_mqtt
                                 .publish(
-                                    &format!("satellite/{}/telemetry", satellite_name),
+                                    &format!("satellite/{}/telemetry", satellite_id),
                                     QoS::AtLeastOnce,
                                     false,
                                     serde_json::to_string(&msg).unwrap().as_bytes(),

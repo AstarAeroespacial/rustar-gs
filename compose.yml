@@ -1,0 +1,15 @@
+services:
+  groundstation:
+    build: .
+    image: rustar-gs:latest
+    container_name: rustar-gs
+
+    volumes:
+      # use the required configuration file, for example:
+      # - ./ground-station/config.demo.toml:/ground-station/config.toml
+      - ./ground-station/config.toml:/ground-station/config.toml
+
+    ports:
+      - "9999:9999"
+      - "8883:8883"
+      - "5556:5556"
