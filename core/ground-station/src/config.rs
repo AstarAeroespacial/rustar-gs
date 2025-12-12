@@ -5,7 +5,7 @@ pub struct Config {
     pub mqtt: MqttConfig,
     pub ground_station: GroundStationConfig,
     pub api: ApiConfig,
-    pub sdr: SdrConfig,
+    // pub sdr: SdrConfig,
 }
 
 /// MQTT Transport Type
@@ -48,14 +48,14 @@ pub struct Location {
     pub altitude: f64,
 }
 
-/// SDR Type
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", tag = "type")]
-pub enum SdrConfig {
-    Mock,
-    ZmqMock { zmq_endpoint: String },
-    Soapy { soapy_string: String },
-}
+// /// SDR Type
+// #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+// #[serde(rename_all = "snake_case", tag = "type")]
+// pub enum SdrConfig {
+//     Mock,
+//     ZmqMock { zmq_endpoint: String },
+//     Soapy { soapy_string: String },
+// }
 
 /// API Server Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

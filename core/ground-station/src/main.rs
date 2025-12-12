@@ -13,14 +13,13 @@ use axum::{
     routing::{get, post},
 };
 use chrono::Utc;
-use demod::{Demodulator, example::ExampleDemod};
-use framing::{deframer::Deframer, mock_deframer::MockDeframer};
+use demod::afsk1200::Afsk1200Iterator;
+use framing::{deframer::Deframer, hdlc_deframer::HdlcDeframer};
 use rumqttc::{AsyncClient, Incoming, MqttOptions, QoS, Transport, tokio_rustls};
 use rustar_types::{
     jobs::{Job, JobStatus},
     mqtt::telemetry::TelemetryMessage,
 };
-use sdr::{MockSdr, SdrCommand, sdr_task};
 use std::{
     sync::{
         Arc, Mutex,
@@ -33,23 +32,6 @@ use tokio_rustls::rustls::ClientConfig;
 use tracking::{Elements, Tracker};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-
-fn create_sdr(sdr_config: &config::SdrConfig) -> Box<dyn sdr::Sdr + Send> {
-    match sdr_config {
-        config::SdrConfig::Mock => {
-            println!("[SDR] Creating Mock SDR");
-            Box::new(MockSdr::new(48_000.0, 1200.0, 512))
-        }
-        config::SdrConfig::ZmqMock { zmq_endpoint } => {
-            println!("[SDR] Creating ZMQ Mock SDR: {}", zmq_endpoint);
-            Box::new(sdr::ZmqMockSdr::new(zmq_endpoint.clone()))
-        }
-        config::SdrConfig::Soapy { soapy_string } => {
-            println!("[SDR] Creating SoapySDR: {}", soapy_string);
-            panic!("SoapySDR not yet implemented");
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() {
@@ -81,7 +63,7 @@ async fn main() {
         &config.ground_station.location.altitude
     );
     println!("  API: {}:{}", config.api.host, config.api.port);
-    println!("  SDR: {:?}", config.sdr);
+    // println!("  SDR: {:?}", config.sdr);
 
     let observer = tracking::Observer::new(
         config.ground_station.location.latitude,
@@ -195,7 +177,6 @@ async fn main() {
 
                 let config_clone = config.clone();
                 let observer_clone = observer.clone();
-                let sdr = create_sdr(&config_clone.sdr);
 
                 let client_for_started = client.clone();
                 let job_id_for_started = job.id;
@@ -231,36 +212,29 @@ async fn main() {
                     let tracker = Tracker::new(&observer_clone, elements).unwrap();
                     let stop = Arc::new(AtomicBool::new(false));
 
-                    let deframer = MockDeframer::new("IN A HOLE IN THE GROUND".as_bytes().to_vec());
-                    let demodulator = ExampleDemod::new();
+                    let deframer = HdlcDeframer::new();
+                    let bits = Afsk1200Iterator::new();
                     let controller = Arc::new(Mutex::new(MockController));
 
-                    let (cmd_tx, cmd_rx) = mpsc::channel(1); // tokio channel
-                    let (samp_tx, samp_rx) = std::sync::mpsc::channel(); // standard channel
-                    // END SETUP
 
-                    let sdr_handle = tokio::spawn(sdr_task(sdr, cmd_rx, samp_tx));
-
-                    // TRACKING
+                           // TRACKING
                     let stop_clone = stop.clone();
                     let controller_clone = controller.clone();
-                    let tracker_handle = tokio::spawn(async move {
-                        // TODO: until los in job
-                        for i in 0..5 {
-                            tokio::time::sleep(Duration::from_secs(1)).await;
-                            let obs = tracker.track(Utc::now()).unwrap();
+                    let los_time = job.end;
 
-                            println!("Tracking step {}: Az={:.1}°, El={:.1}°",
-                            i, obs.azimuth.to_degrees(), obs.elevation.to_degrees());
+                    let tracker_handle = tokio::spawn(async move {
+                        while Utc::now() < los_time {
+                            let now = Utc::now();
+                            let obs = tracker.track(now).unwrap();
+
+                            // println!("Tracking step {}: Az={:.1}°, El={:.1}°",
+                            // i, obs.azimuth.to_degrees(), obs.elevation.to_degrees());
 
                             controller_clone
                             .lock()
                             .unwrap()
                                 .send(obs.azimuth.to_degrees(), obs.elevation.to_degrees(), "ISS", 145800)
                                 .unwrap();
-
-                            // TODO: consider using crate engineering units, might be elegant
-                            cmd_tx.send(SdrCommand::SetRxFrequency(435_000_000.0)).await.unwrap();
 
                             tokio::time::sleep(Duration::from_secs(1)).await;
                         }
@@ -275,11 +249,12 @@ async fn main() {
                     let (frame_tx, mut frame_rx) = mpsc::unbounded_channel();
 
                     let frame_handle = tokio::task::spawn_blocking(move || {
-                        let bits = demodulator.bits(samp_rx.into_iter());
+                        // let bits = demodulator.bits(samp_rx.into_iter());
                         let mut frames = deframer.frames(bits);
 
                         while !stop_clone.load(Ordering::Relaxed) {
                             if let Some(payload) = frames.next().and_then(|frame| frame.info) {
+                                dbg!(String::from_utf8_lossy(&payload));
                                 frame_tx.send(payload).unwrap();
                             }
                         }
@@ -295,6 +270,8 @@ async fn main() {
                         while let Some(payload) = frame_rx.recv().await {
                             let msg = TelemetryMessage::new(gs_id_for_mqtt.clone(), Utc::now(), payload);
 
+                            dbg!(&msg);
+
                             client_for_mqtt
                                 .publish(
                                     &format!("satellite/{}/telemetry", satellite_id),
@@ -307,7 +284,7 @@ async fn main() {
                         }
                     });
 
-                    let _ = tokio::join!(tracker_handle, sdr_handle, frame_handle, mqtt_handle);
+                    let _ = tokio::join!(tracker_handle, frame_handle, mqtt_handle);
 
                     let client_for_completed = client_clone.clone();
                     let job_id_for_completed = job.id;
