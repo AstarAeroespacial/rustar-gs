@@ -17,7 +17,7 @@ use demod::afsk1200::Afsk1200Iterator;
 use framing::{deframer::Deframer, hdlc_deframer::HdlcDeframer};
 use rumqttc::{AsyncClient, Incoming, MqttOptions, QoS, Transport, tokio_rustls};
 use rustar_types::{
-    jobs::{Job, JobStatus},
+    jobs::{Job, JobStatus, JobStatusUpdate},
     mqtt::telemetry::TelemetryMessage,
 };
 use std::{
