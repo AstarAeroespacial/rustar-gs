@@ -144,9 +144,7 @@ async fn main() {
                                     &format!("job/{}", job_id),
                                     QoS::AtLeastOnce,
                                     true,
-                                    serde_json::to_string(&JobStatus::Scheduled)
-                                        .unwrap()
-                                        .as_bytes(),
+                                    serde_json::to_string(&JobStatusUpdate {timestamp: Utc::now(), status: JobStatus::Scheduled}).unwrap().as_bytes(),
                                 )
                                 .await
                                 .unwrap();
@@ -161,9 +159,7 @@ async fn main() {
                                     &format!("job/{}", job_id),
                                     QoS::AtLeastOnce,
                                     true,
-                                    serde_json::to_string(&JobStatus::Error) // TODO: better error
-                                        .unwrap()
-                                        .as_bytes(),
+                                    serde_json::to_string(&JobStatusUpdate {timestamp: Utc::now(), status: JobStatus::Error}).unwrap().as_bytes(),
                                 )
                                 .await
                                 .unwrap();
@@ -187,9 +183,7 @@ async fn main() {
                             &format!("job/{}", job_id_for_started),
                             QoS::AtLeastOnce,
                             true,
-                            serde_json::to_string(&JobStatus::Started)
-                                .unwrap()
-                                .as_bytes(),
+                            serde_json::to_string(&JobStatusUpdate {timestamp: Utc::now(), status: JobStatus::Started}).unwrap().as_bytes(),
                         )
                         .await
                         .unwrap();
@@ -294,9 +288,7 @@ async fn main() {
                                 &format!("job/{}", job_id_for_completed),
                                 QoS::AtLeastOnce,
                                 true,
-                                serde_json::to_string(&JobStatus::Completed)
-                                    .unwrap()
-                                    .as_bytes(),
+                                serde_json::to_string(&JobStatusUpdate {timestamp: Utc::now(), status: JobStatus::Completed}).unwrap().as_bytes(),
                             )
                             .await
                             .unwrap();
@@ -324,9 +316,7 @@ async fn main() {
                                             &format!("job/{}", job_id),
                                             QoS::AtLeastOnce,
                                             true,
-                                            serde_json::to_string(&JobStatus::Received)
-                                                .unwrap()
-                                                .as_bytes(),
+                                            serde_json::to_string(&JobStatusUpdate {timestamp: Utc::now(), status: JobStatus::Received}).unwrap().as_bytes(),
                                         )
                                         .await
                                         .unwrap();
