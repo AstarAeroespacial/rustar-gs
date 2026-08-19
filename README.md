@@ -47,7 +47,7 @@ This project is currently for academic purposes. Licensing information will be a
 
 *Astar Aeroespacial*
 
-[![Website](https://img.shields.io/badge/Webpage-000000?style=flat&logo=internet-explorer&logoColor=white)](https://labi.fi.uba.ar/proyectos/astar) [![Instagram](https://img.shields.io/badge/Instagram-E4405F?style=flat&logo=instagram&logoColor=white)](https://www.instagram.com/astar_aeroespacial/)
+[![Website](https://img.shields.io/badge/Webpage-000000?style=flat&logo=internet-explorer&logoColor=white)](https://www.astar.com.ar/) [![Instagram](https://img.shields.io/badge/Instagram-E4405F?style=flat&logo=instagram&logoColor=white)](https://www.instagram.com/astar_aeroespacial/)
 
 
 *University of Buenos Aires - Faculty of Engineering*
