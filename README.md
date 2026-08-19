@@ -2,6 +2,8 @@
 
 **RUSTAR** (Rust Satellite Ground Station Software) is a project developed as part of a final professional thesis at the Faculty of Engineering, University of Buenos Aires, in the context of Astar Aerospacial program.
 
+The complete technical report and related academic material are available in the [`rustar-reports`](https://github.com/AstarAeroespacial/rustar-reports) repository.
+
 This software aims to serve as the *TT&C* system for a **ground station** that communicates with satellites. It is being developed in **Rust**, a systems programming language known for its performance and reliability.
 
 ## 📡 Project Description
